@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('apollo', {
   workflows: {
     state:()=>ipcRenderer.invoke('workflow:state'),
     create:input=>ipcRenderer.invoke('workflow:create',input),
+    saveTemplate:input=>ipcRenderer.invoke('workflow:template',input),
     advance:(id,approved)=>ipcRenderer.invoke('workflow:advance',id,approved),
     cancel:()=>ipcRenderer.invoke('workflow:cancel'),
   },

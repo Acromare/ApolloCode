@@ -42,7 +42,8 @@ try {
         $controls = @(Controls $window)
         if ($request.action -eq 'snapshot') {
             $output = @($controls | ForEach-Object {
-                @{id=($_.GetRuntimeId() -join '-');name=$_.Current.Name;role=$_.Current.ControlType.ProgrammaticName;enabled=$_.Current.IsEnabled}
+                $rect=$_.Current.BoundingRectangle
+                @{id=($_.GetRuntimeId() -join '-');name=$_.Current.Name;role=$_.Current.ControlType.ProgrammaticName;enabled=$_.Current.IsEnabled;bounds=@{left=$rect.Left;top=$rect.Top;width=$rect.Width;height=$rect.Height}}
             })
         } else {
             $target = $controls | Where-Object { ($_.GetRuntimeId() -join '-') -eq $request.id } | Select-Object -First 1

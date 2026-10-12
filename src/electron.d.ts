@@ -1,11 +1,11 @@
 export {};
 import type {RuntimeState,RuntimeSettings,RuntimeEvent,McpServer} from './runtime-types';
-import type {WorkflowRun,WorkflowState,Snapshot,DesktopWindow} from './operation-types';
+import type {WorkflowRun,WorkflowState,WorkflowTemplate,Snapshot,DesktopWindow} from './operation-types';
 
 declare global {
   interface Window {
     apollo: {
-      workflows:{state():Promise<WorkflowState>;create(input:{templateId:string;task:string;prompts:string[]}):Promise<WorkflowRun>;advance(id:string,approved?:boolean):Promise<WorkflowRun>;cancel():Promise<{ok:boolean}>};
+      workflows:{state():Promise<WorkflowState>;create(input:{templateId:string;task:string;prompts:string[]}):Promise<WorkflowRun>;saveTemplate(input:WorkflowTemplate):Promise<WorkflowTemplate>;advance(id:string,approved?:boolean):Promise<WorkflowRun>;cancel():Promise<{ok:boolean}>};
       browser:{open(url:string):Promise<Snapshot>;snapshot():Promise<Snapshot>;action(kind:'click'|'type',id:string,text?:string):Promise<{ok:boolean}>;preview():Promise<{image:string;url:string}>;show():Promise<{ok:boolean}>;close():Promise<void>};
       updates:{state():Promise<{status:string;version:string;available?:string;percent?:number;error?:string}>;check():Promise<unknown>;download():Promise<unknown>;install():Promise<unknown>};
       computer:{windows():Promise<DesktopWindow[]>;select(handle:string,pid:number):Promise<Snapshot>;snapshot():Promise<Snapshot>;action(kind:'click'|'type',id:string,text?:string):Promise<{ok:boolean}>;revoke():Promise<{ok:boolean}>};
@@ -13,8 +13,8 @@ declare global {
       minimize(): Promise<void>;
       maximize(): Promise<void>;
       getInfo(): Promise<{project: string; version: string}>;
-      getConfig(): Promise<{provider?: 'openai' | 'anthropic' | 'claude' | 'ollama'; apiKey?: string; model?: string; baseUrl?: string; trust?: 'confirm' | 'session' | 'yolo'}>;
-      saveConfig(config: {provider: 'openai' | 'anthropic' | 'claude' | 'ollama'; apiKey: string; model: string; baseUrl: string; trust?: 'confirm' | 'session' | 'yolo'}): Promise<{ok: boolean}>;
+      getConfig(): Promise<{provider?: 'openai' | 'anthropic' | 'claude' | 'ollama'; apiKey?: string; model?: string; baseUrl?: string; apiMode?:'auto'|'chat'|'responses'; trust?: 'confirm' | 'session' | 'yolo'}>;
+      saveConfig(config: {provider: 'openai' | 'anthropic' | 'claude' | 'ollama'; apiKey: string; model: string; baseUrl: string; apiMode?:'auto'|'chat'|'responses'; trust?: 'confirm' | 'session' | 'yolo'}): Promise<{ok: boolean}>;
       chat(payload: {messages: Array<{role: string; content: string}>; instruction?: string; skillId?:string; requestId?:string}): Promise<{ok: boolean; content?: string; error?: string}>;
       runtime:{
         state():Promise<RuntimeState>;

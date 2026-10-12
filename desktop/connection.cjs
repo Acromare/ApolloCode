@@ -1,7 +1,7 @@
 function normalize(config) {
   const url = new URL(String(config.baseUrl || '').trim());
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('请输入有效的 HTTP/HTTPS API 根地址，不要包含认证信息或查询参数。');
-  url.pathname = url.pathname.replace(/\/(chat\/completions|messages|models)\/?$/, '').replace(/\/+$/, '');
+  url.pathname = url.pathname.replace(/\/(chat\/completions|responses|messages|models)\/?$/, '').replace(/\/+$/, '');
   return {...config, baseUrl: url.toString().replace(/\/+$/, '')};
 }
 function headers(config) {
@@ -34,7 +34,12 @@ async function models(input, fetcher) {
 }
 async function test(input, fetcher) {
   if (input.provider === 'claude') return {ok: false, error: '请在聊天页使用 Claude Code 的登录进行验证。'};
-  try { const config = normalize(input); if (!config.model) throw new Error('请选择或填写模型 ID。'); if (config.provider !== 'ollama' && !config.apiKey) throw new Error('请填写 API Key。'); const anthropic = config.provider === 'anthropic'; const data = await request(config, anthropic ? '/messages' : '/chat/completions', {model: config.model, max_tokens: 8, messages: [{role: 'user', content: 'Reply OK.'}]}, fetcher); const text = anthropic ? data.content?.find(x => x.type === 'text')?.text : data.choices?.[0]?.message?.content; if (typeof text !== 'string' || !text.trim()) throw new Error('接口成功响应，但未返回文本。'); return {ok: true, content: text, usage: data.usage}; }
+  try { const config = normalize(input); if (!config.model) throw new Error('请选择或填写模型 ID。'); if (config.provider !== 'ollama' && !config.apiKey) throw new Error('请填写 API Key。');
+    const anthropic=config.provider==='anthropic',responses=protocol(config)==='responses';
+    const data=await request(config,anthropic?'/messages':responses?'/responses':'/chat/completions',responses?{model:config.model,input:'Reply OK.',max_output_tokens:64,store:false}:{model:config.model,...(anthropic||config.provider==='ollama'?{max_tokens:16}:{max_completion_tokens:64}),messages:[{role:'user',content:'Reply OK.'}]},fetcher);
+    const text=anthropic?data.content?.find(x=>x.type==='text')?.text:responses?(data.output||[]).flatMap(item=>(item.content||[]).filter(c=>c.type==='output_text').map(c=>c.text)).join('\n'):data.choices?.[0]?.message?.content;
+    if(typeof text!=='string'||!text.trim())throw new Error('接口成功响应，但未返回文本。');return {ok:true,content:text,usage:data.usage}; }
   catch (error) { return {ok: false, error: error.message}; }
 }
-module.exports = {normalize, diagnostic, models, test};
+function protocol(config){if(config.provider==='anthropic')return 'anthropic';if(config.provider==='ollama')return 'chat';if(config.apiMode==='responses'||config.apiMode==='chat')return config.apiMode;return /^(?:gpt-[5-9](?:[.-]|$)|o[1-9](?:[.-]|$))/i.test(config.model||'')&&!/azure/i.test(config.baseUrl||'')?'responses':'chat';}
+module.exports = {normalize, diagnostic, models, test,headers,protocol};

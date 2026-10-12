@@ -5,30 +5,31 @@ const {redact}=require('./economy.cjs');
 const {Workflows}=require('./workflows.cjs');
 const {BrowserTools}=require('./browser-tools.cjs');
 const {ComputerTools}=require('./computer-tools.cjs');
-function registerRuntime({app,ipcMain,dialog,getWindow,readConfig,saveConfig,skillDir}){
+function registerRuntime({app,ipcMain,dialog,getWindow,readConfig,saveConfig,skillDir,vault}){
   let runtime;
   const approve=async(type,detail)=>{
     const requestId=runtime?.activeRequestId;
     const notify=status=>{const win=getWindow();if(requestId&&win&&!win.isDestroyed())win.webContents.send('runtime:event',{type:'approval',requestId,name:type,status,time:Date.now(),preview:redact(String(detail).slice(0,2000),[readConfig().apiKey])});};
     const log=allowed=>{if(runtime)fs.appendFileSync(path.join(runtime.dir,'approvals.log'),JSON.stringify({time:new Date().toISOString(),type,allowed,detail:redact(String(detail).slice(0,20000),[readConfig().apiKey])})+'\n');return allowed;};
-    if((runtime?.executionMode||runtime?.settings().mode)==='yolo'&&!['enable-yolo','mcp-connect','browser-action','computer-action','workflow-test'].includes(type))return log(true);
+    if((runtime?.executionMode||runtime?.settings().mode)==='yolo'&&!['enable-yolo','mcp-connect','browser-action','computer-action','workflow-test','memory','git-push','github-pr'].includes(type))return log(true);
     notify('waiting');
     const result=await dialog.showMessageBox(getWindow(),{type:'question',title:'Apollo Code · 操作确认',message:type==='enable-yolo'?'启用 YOLO 自动执行？':type==='patch'?'应用以下补丁？':'允许此操作？',detail:String(detail).slice(0,20000),buttons:['取消','允许'],defaultId:0,cancelId:0,noLink:true});
     const allowed=result.response===1&&!runtime?.running?.signal.aborted;notify(allowed?'approved':'rejected');return log(allowed);
   };
-  runtime=new Runtime({dataDir:path.join(app.getPath('userData'),'runtime'),skillDir:skillDir||path.join(app.getPath('home'),'.apollocode','skills'),getConfig:readConfig,approve,emit:event=>{const window=getWindow();if(window&&!window.isDestroyed())window.webContents.send('runtime:event',event);}});
+  runtime=new Runtime({dataDir:path.join(app.getPath('userData'),'runtime'),skillDir:skillDir||path.join(app.getPath('home'),'.apollocode','skills'),getConfig:readConfig,approve,vault,emit:event=>{const window=getWindow();if(window&&!window.isDestroyed())window.webContents.send('runtime:event',event);}});
   runtime.workflows=new Workflows(runtime);
   runtime.browser=new BrowserTools({BrowserWindow:require('electron').BrowserWindow,approve});
   runtime.computer=new ComputerTools(approve);
   const idle=()=>{if(runtime.running||runtime.workflowBusy)throw new Error('请先停止当前任务。');};
   ipcMain.handle('workflow:state',()=>runtime.workflows.state());
   ipcMain.handle('workflow:create',(_,input)=>runtime.workflows.create(input));
+  ipcMain.handle('workflow:template',(_,input)=>runtime.workflows.saveTemplate(input));
   ipcMain.handle('workflow:advance',(_,id,approved)=>runtime.workflows.advance(id,approved===true));
   ipcMain.handle('workflow:cancel',()=>runtime.workflows.cancel());
   ipcMain.handle('browser:open',(_,url)=>{idle();return runtime.browser.open(url);});
   ipcMain.handle('browser:snapshot',()=>{idle();return runtime.browser.snapshot();});
   ipcMain.handle('browser:action',(_,kind,id,text)=>{idle();if(!['click','type'].includes(kind))throw new Error('无效操作');return runtime.browser.action(kind,id,text);});
-  ipcMain.handle('browser:preview',()=>runtime.browser.preview());
+  ipcMain.handle('browser:preview',()=>runtime.browser.window&&!runtime.browser.window.isDestroyed()?runtime.browser.preview():{image:'',url:''});
   ipcMain.handle('browser:show',()=>runtime.browser.show());
   ipcMain.handle('browser:close',()=>runtime.browser.close());
   ipcMain.handle('computer:windows',()=>{idle();return runtime.computer.windows();});

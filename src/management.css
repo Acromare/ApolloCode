@@ -28,3 +28,7 @@
 .sidebar .brand{display:flex;align-items:center;gap:8px}.brand-icon{object-fit:contain;flex:none}.sidebar .brand-icon{width:27px;height:27px}.composer .brand-icon{width:38px;height:38px}
 @media(min-width:801px) and (max-width:1100px){.sidebar .brand{gap:5px}.sidebar .brand-icon{width:20px;height:20px}}
 @media(max-width:800px){.sidebar .brand{font-size:0;padding:0;justify-content:center}.sidebar .brand-icon{width:27px;height:27px}}
+.workflow-editor{border:1px solid var(--border);padding:20px;border-radius:8px;margin-bottom:20px;background:var(--surface)}
+.workflow-graph{max-width:100%;overflow:auto;padding:8px;background:var(--input);border:1px solid var(--border);border-radius:6px}
+.workflow-graph g[role=button]{cursor:pointer;outline:none}.workflow-graph g:focus-visible rect{stroke:var(--focus);stroke-width:3}
+.workflow-editor fieldset{border:1px solid var(--border);padding:12px;display:grid;gap:8px}.workflow-editor input[type=checkbox]{width:auto}

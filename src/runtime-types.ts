@@ -1,4 +1,4 @@
-export type RuntimeSettings={browserEnabled:boolean;computerEnabled:boolean;mode:'chat'|'plan'|'agent'|'yolo';contextTokens:number;maxOutputTokens:number;toolOutputTokens:number;maxSteps:number;inputPrice:number;outputPrice:number;costAlert:number;enabledSkills:string[];mcpTools:string[]};
+export type RuntimeSettings={browserEnabled:boolean;computerEnabled:boolean;semanticSummary:boolean;autoMemory:boolean;parallelAgents:boolean;mode:'chat'|'plan'|'agent'|'yolo';contextTokens:number;maxOutputTokens:number;toolOutputTokens:number;maxSteps:number;inputPrice:number;outputPrice:number;costAlert:number;enabledSkills:string[];mcpTools:string[]};
 export type Skill={id:string;name:string;description:string;source:string};
 export type McpServer={id:string;transport:'stdio'|'http';command:string;args:string[];url:string;env:Record<string,string>;headers?:Record<string,string>;connected?:boolean;tools?:{name:string;alias:string}[]};
 export type Usage={input:number;output:number;cached:number;cost:number;tools:number;requests:number;filteredTokens:number;lastContext:{estimatedTokens:number;omittedMessages:number;rawEstimatedTokens:number}|null};

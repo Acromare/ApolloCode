@@ -5,16 +5,18 @@ function anthropicMessages(messages){
     let role=m.role,content;
     if(role==='tool'){role='user';content=[{type:'tool_result',tool_use_id:m.tool_call_id,content:m.content}];}
     else if(m.tool_calls){content=[...(m.content?[{type:'text',text:m.content}]:[]),...m.tool_calls.map(t=>({type:'tool_use',id:t.id,name:t.function.name,input:JSON.parse(t.function.arguments||'{}')}))];}
+    else if(Array.isArray(m.content))content=m.content.map(c=>c.type==='image_url'?{type:'image',source:{type:'base64',media_type:c.image_url.url.split(';')[0].slice(5),data:c.image_url.url.split(',')[1]}}:c);
     else content=[{type:'text',text:m.content||' '}];
     if(converted.at(-1)?.role===role) converted.at(-1).content.push(...content);else converted.push({role,content});
   }
   return converted;
 }
 async function modelTurn(config,system,messages,tools,maxOutput,signal,emit,fetcher=fetch){
+  if(connection.protocol(config)==='responses')return require('./responses.cjs').responsesTurn(config,system,messages,tools,maxOutput,signal,emit,fetcher);
   const anthropic=config.provider==='anthropic';
   const base=connection.normalize(config).baseUrl;
   const body=anthropic?{model:config.model,max_tokens:maxOutput,stream:true,system,messages:anthropicMessages(messages),...(tools.length?{tools:tools.map(t=>({name:t.name,description:t.description,input_schema:t.parameters}))}:{})}
-    :{model:config.model,max_tokens:maxOutput,stream:true,stream_options:{include_usage:true},messages:[{role:'system',content:system},...messages],...(tools.length?{tools:tools.map(t=>({type:'function',function:t}))}:{})};
+    :{model:config.model,...(config.provider==='ollama'?{max_tokens:maxOutput}:{max_completion_tokens:maxOutput}),stream:true,stream_options:{include_usage:true},messages:[{role:'system',content:system},...messages],...(tools.length?{tools:tools.map(t=>({type:'function',function:t}))}:{})};
   const headers=anthropic?{'Content-Type':'application/json','x-api-key':config.apiKey,'anthropic-version':'2023-06-01'}:{'Content-Type':'application/json',...(config.apiKey?{Authorization:'Bearer '+config.apiKey}:{})};
   const response=await fetcher(base+(anthropic?'/messages':'/chat/completions'),{method:'POST',headers,body:JSON.stringify(body),signal,redirect:'error'});
   if(!response.ok){let data;try{data=await response.json();}catch{}throw new Error(connection.diagnostic(response.status,data?.error?.message,config.apiKey));}

@@ -1,64 +1,88 @@
-# Apollo Code
+# Apollo Code ☀️
 
-Windows 桌面 Agent，带专属图标、安装程序、桌面和开始菜单快捷方式。
+> Bring an idea. Open your workspace. Build something useful.
 
-## 日间与夜间主题
+Apollo Code is a desktop AI workspace for the moments when a conversation needs to become working code. Ask a question, explore a project, fix a bug, or put a repeatable task into a workflow—all from one place.
 
-右上角太阳/月亮按钮切换主题。夜间使用星空，日间使用阿波罗雕像背景，主界面按两张参考图重新排版。
-切换采用圆形展开动画，系统开启减少动画时立即切换。选择保存在本机，不进入模型上下文、不产生 API 请求。
-所有管理页、聊天和弹窗同步换色。图标沿用用户指定的紫色星标。
+**Talk it through. Make a plan. Let Apollo help you build.**
 
-## 模型与供应商
+[📦 Download for Windows](https://github.com/Acromare/ApolloCode/releases/latest) · [🚀 Quick start](#quick-start) · [✨ What's new](#whats-new-in-060) · [📖 Documentation](#documentation)
 
-在模型入口填写一次供应商 URL 和 API Key，自动获取列表后选择模型，无需填写模型 ID。
-支持 OpenAI 兼容、Anthropic 和 Ollama；Claude Code CLI 使用已安装并登录的本地 CLI。
-模型列表依赖供应商提供 /models；列表出现不代表一定有额度。连接测试最多请求 8 输出 Token。
+## A workspace for your next idea
 
-## Skills、MCP 与设置
+Start with the model you already use. Apollo connects to OpenAI-compatible services, Anthropic, and local Ollama models. You can also use an installed Claude Code CLI.
 
-Skills 页面启用、导入、创建、编辑和选用技能；外置技能位于 %USERPROFILE%\.apollocode\skills。
-内置正文按需加载，不会每轮全部发送。MCP 页面配置 stdio 或 Streamable HTTP、
-环境变量或鉴权请求头；连接后选择允许模型看到的工具。
+Pick a project and tell Apollo what you want to do. It can read the code, explain how it fits together, propose changes, apply a patch, and run your tests. Keep the conversation focused; open the work details whenever you want to see what happened.
 
-输入区选择 Chat / Plan / Agent / YOLO。Plan 只读分析；Agent 修改补丁、执行测试和调用
-MCP 前确认。Workspace 查看原始 diff、审批补丁、回滚最近变更。测试脚本和 MCP 进程不是 OS 沙箱。
+For tasks beyond your editor, connect an MCP tool, add a skill, or authorize a browser or Windows application. Save a useful sequence as a workflow and come back to it next time.
 
-设置提供 Token 预算、供应商切换、用户批准记忆和用量。默认上下文 8192、输出 768、
-工具输出 1000 个估算 Token、最多 6 轮；历史按预算裁剪，不进行额外模型摘要请求。
-实际 Token 以服务商 usage 为准；本地估算不保证与不同厂商完全一致。费用须填写价格，
-不承诺固定节省比例。Claude Code CLI 使用自己的运行时，不适用 API 工具循环。
+## Quick start
 
-API Key 保存在 Electron 用户数据目录的 config.json 和 runtime/providers.json。
-MCP 凭证也保存在本机配置中，未加密。聊天记录仅保存在本机；附件仅支持 100 KB 内文本。
-过滤不能替代用户检查。完整功能和未完成项见 STATUS.md。
+### 1. Install Apollo
 
-## 工作流与操作
+Download the Windows x64 installer from [Releases](https://github.com/Acromare/ApolloCode/releases/latest), run it, and open Apollo Code.
 
-Workflows 内置开发与桌面自动化两类流程。填写任务，可编辑步骤指令；创建后开始，查看规划结果，再批准继续。
-各危险阶段分别停在审核处。失败或应用退出不会自动重试；检查实际结果后可手动重试。
-工作流绑定创建时项目及模型，结果保存于 Electron 用户数据 runtime/workflows.json；补丁提供回滚按钮。
+### 2. Connect your model
 
-Automation 浏览器页打开独立受控窗口，读取控件，选择点击或填入文本；相机按钮仅本地预览，不自动发送截图。
-Windows 页先读取窗口列表，再选择并授权目标窗口。Agent 使用操作工具还需勾选相应开关。
-浏览器与 Windows 操作不因 YOLO 自动获批。审批日志在 runtime/approvals.log。
-当前仅支持语义控件，不是任意屏幕视觉鼠标代理；密码、提权及不暴露控件的画布不支持。
-外部网页/应用操作没有通用回滚，中断不能逆转已完成的操作。
+Open the model settings, choose your provider, and enter its API URL and key. Select a model from the available list or enter its ID, then test the connection.
 
-## 构建
+OpenAI-compatible providers support both Responses and Chat Completions. Leave the protocol on automatic, or select the interface your provider recommends.
+
+### 3. Choose a project and start a conversation
+
+Try something small:
+
+> Explain this project and show me where the application starts.
+
+Then give Apollo a concrete task:
+
+> Find why this test fails, propose a fix, and run the tests after I approve it.
+
+Choose **Chat** to talk, **Plan** to explore without edits, or **Agent** to work through changes with approval. **YOLO** is available when you want fewer interruptions; browser and desktop actions still ask for approval.
+
+## What's new in 0.6.0
+
+- **More ways to build.** Run Shell commands, commit selected files, push changes, and prepare a GitHub draft PR. TS/JS language tools help inspect diagnostics, definitions, and references.
+- **A second pair of eyes.** Give the model browser or authorized Windows screenshots, then use clicks, typing, hotkeys, scrolling, and dragging to work with the page or application.
+- **Workflows you can shape.** Add model, Shell, or test steps; connect dependencies and choose what happens after success or failure.
+- **Context that lasts longer.** Summarize older conversation history and optionally suggest stable preferences for you to save as memory. Read-only subtasks can run in parallel.
+- **Your connections, kept locally.** Saved Windows credentials use current-user encryption. Model configuration now includes an explicit API protocol choice.
+
+## Make it yours
+
+**Skills** hold instructions you want Apollo to reuse. Enable the built-in skills, import a SKILL.md, or write your own.
+
+**MCP** connects tools you already have. Configure a local process or HTTP endpoint, then select which tools Apollo can use.
+
+**Workflows** turn a recurring task into a sequence you can inspect and reuse. Each run keeps its results, so you can see where it stopped and decide how to continue.
+
+**Day and night themes** give the workspace two moods. Switch with the sun or moon button; Apollo remembers your choice.
+
+## Documentation
+
+- [Capabilities and current scope](STATUS.md)
+- [Releases and updates](RELEASING.md)
+- [Windows signing setup](SIGNING.md)
+
+## Build from source
 
 ```powershell
 npm install
 npm run build
 npm test
-npm run test:ui
-npm run test:theme
-npm run test:automation
-npm run test:native
 npm run dev
-npm run make
 ```
 
-安装输出在 release，可选择目录并创建快捷方式；make:portable 生成便携版。
-源码含 src、desktop、assets、scripts、test、bin；已提供图标。
-npm run dev 启动桌面窗口，不需要浏览器开发服务器。
-安装包不含用户密钥、聊天记录或 Hermes 私人配置。
+To build a Windows installer:
+
+```powershell
+node scripts/build-release.cjs
+```
+
+## Contributing
+
+Have a task Apollo could handle better? Open an [issue](https://github.com/Acromare/ApolloCode/issues) with a small example. Ideas, fixes, and focused pull requests are welcome.
+
+---
+
+Made for curious builders. Open a workspace. Follow an idea. **Enjoy! 💜**

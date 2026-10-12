@@ -1,6 +1,6 @@
 {
   "name": "apollo-code",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Apollo Code desktop workspace",
   "main": "desktop/main.cjs",
   "bin": {
@@ -18,13 +18,16 @@
     "build": "vite build && tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "make": "npm run build && electron-builder --win nsis --x64",
+    "make:signed": "npm run build && node scripts/build-release.cjs --signed",
     "make:portable": "npm run build && electron-builder --win portable --x64",
-    "test": "node --test test/connection.test.cjs test/runtime.test.cjs test/mcp.test.cjs test/workflows.test.cjs test/updates.test.cjs",
+    "test": "node --test test/connection.test.cjs test/runtime.test.cjs test/mcp.test.cjs test/workflows.test.cjs test/updates.test.cjs test/capabilities.test.cjs test/responses.test.cjs test/signing.test.cjs",
     "test:automation": "electron scripts/automation-smoke.cjs",
     "test:native": "node scripts/native-smoke.cjs",
     "test:ui": "electron scripts/ui-smoke.cjs",
     "test:theme": "electron scripts/theme-smoke.cjs",
     "test:activity": "electron scripts/activity-smoke.cjs",
+    "test:visual": "electron scripts/visual-smoke.cjs",
+    "test:live": "electron scripts/live-agent-smoke.cjs --live",
     "package:verify": "npm run build && npm pack --dry-run",
     "prepack": "npm run build"
   },
@@ -37,11 +40,17 @@
     "@types/react-dom": "^19.3.0",
     "electron": "^44.7.0",
     "electron-builder": "^26.15.3",
-    "typescript": "^7.0.2",
     "vite": "^8.3.4"
   },
   "build": {
-    "publish": [{"provider":"github","owner":"Acromare","repo":"ApolloCode","releaseType":"release"}],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Acromare",
+        "repo": "ApolloCode",
+        "releaseType": "release"
+      }
+    ],
     "appId": "com.apollocode.desktop",
     "productName": "Apollo Code",
     "directories": {
@@ -52,6 +61,7 @@
       "dist/**/*",
       "package.json"
     ],
+    "asarUnpack": ["node_modules/typescript/**/*","node_modules/typescript-language-server/**/*"],
     "win": {
       "target": "nsis",
       "icon": "desktop/icon.ico",
@@ -82,6 +92,8 @@
     "lucide-react": "^1.55.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "typescript": "^6.0.3",
+    "typescript-language-server": "^5.3.0",
     "yaml": "^2.9.1"
   }
 }

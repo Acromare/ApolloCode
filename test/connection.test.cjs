@@ -27,7 +27,7 @@ test('connection test uses selected model with a small generation', async () => 
   const result = await connection.test(config, async (_, options) => {
     const body = JSON.parse(options.body);
     assert.equal(body.model, config.model);
-    assert.equal(body.max_tokens, 8);
+    assert.equal(body.max_completion_tokens, 64);
     return {ok:true, text:async () => JSON.stringify({choices:[{message:{content:'OK'}}]})};
   });
   assert.equal(result.ok, true);

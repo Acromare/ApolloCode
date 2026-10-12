@@ -41,4 +41,10 @@ function context(messages, budget, prefixTokens = 0) {
   while (selected.length>1 && selected[0].role==='assistant') selected.shift();
   return {messages:selected, omitted:safe.length-selected.length, estimatedInput:total, rawEstimatedInput:safe.reduce((n,m)=>n+count(m.content)+8, prefixTokens)};
 }
-module.exports = {count, redact, clip, filterOutput, context};
+function modelTokens(messages,tools){
+  let images=0;const compact=messages.map(m=>({...m,content:Array.isArray(m.content)?m.content.map(c=>{
+    if(c.type==='image_url'||c.type==='image'){images++;return {type:'image',note:'approved screenshot'};}return c;
+  }):m.content}));
+  return count(JSON.stringify({messages:compact,tools}))+images*1500;
+}
+module.exports = {count, redact, clip, filterOutput, context,modelTokens};

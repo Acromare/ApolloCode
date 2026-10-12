@@ -16,7 +16,14 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - run: npx electron-builder --win nsis --x64 --publish never
+      - run: node scripts/build-release.cjs
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_PFX_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
+          APOLLO_AZURE_SIGNING_JSON: ${{ vars.AZURE_SIGNING_CONFIG }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       - uses: softprops/action-gh-release@v2
         with:
           files: |

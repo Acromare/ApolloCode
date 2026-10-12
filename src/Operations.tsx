@@ -1,11 +1,13 @@
 import React,{useEffect,useState} from 'react';
 import {Play,Square,RefreshCw,Plus,Check,MousePointer,Type,Unplug,Camera,ExternalLink} from 'lucide-react';
-import type {WorkflowState,WorkflowRun,Snapshot,DesktopWindow} from './operation-types';
+import type {WorkflowState,WorkflowRun,WorkflowTemplate,Snapshot,DesktopWindow} from './operation-types';
+import {WorkflowEditor} from './WorkflowEditor';
 import type {RuntimeState} from './runtime-types';
 import './management.css';
-const labels:Record<string,string>={idle:'未开始',pending:'待执行',running:'执行中',waiting:'等待批准',failed:'失败',interrupted:'已中断',completed:'已完成'};
+const labels:Record<string,string>={idle:'未开始',pending:'待执行',running:'执行中',waiting:'等待批准',failed:'失败',interrupted:'已中断',completed:'已完成',completed_with_errors:'已结束 · 部分失败',skipped:'分支未执行'};
 export function Operations({view,state,refresh}:{view:'Workflows'|'Automation';state:RuntimeState|null;refresh:()=>Promise<void>}){
   const [data,setData]=useState<WorkflowState|null>(null),[selected,setSelected]=useState(''),[task,setTask]=useState(''),[prompts,setPrompts]=useState<string[]>([]),[active,setActive]=useState<string|null>(null);
+  const [editing,setEditing]=useState<{template?:WorkflowTemplate}|null>(null);
   const [error,setError]=useState(''),[pending,setPending]=useState(false),[progress,setProgress]=useState(''),[tab,setTab]=useState<'browser'|'computer'>('browser');
   const [url,setUrl]=useState('https://example.com'),[snapshot,setSnapshot]=useState<Snapshot|null>(null),[windows,setWindows]=useState<DesktopWindow[]>([]),[text,setText]=useState(''),[image,setImage]=useState('');
   const load=async()=>setData(await window.apollo.workflows.state());
@@ -20,6 +22,8 @@ export function Operations({view,state,refresh}:{view:'Workflows'|'Automation';s
   async function advance(r:WorkflowRun){await window.apollo.workflows.advance(r.id,r.status==='waiting'||r.status==='failed'||r.status==='interrupted');}
   return <section className="management-page operations-page"><header><h1>{view==='Workflows'?'工作流':'浏览器与桌面'}</h1><span role="status">{progress}</span></header>{error&&<p className="management-error" role="alert">{error}</p>}
     {view==='Workflows'&&<>
+      <div className="management-toolbar"><button disabled={pending} onClick={()=>setEditing({})}><Plus/>新建节点图</button><button disabled={pending||!selected} onClick={()=>setEditing({template:data?.templates.find(t=>t.id===selected)})}>编辑所选流程</button></div>
+      {editing&&<WorkflowEditor template={editing.template} onClose={()=>setEditing(null)} onSaved={t=>{setSelected(t.id);setPrompts(t.steps.map(s=>s.prompt));setEditing(null);void load();}}/>}
       <div className="workflow-layout"><div className="workflow-history"><button disabled={pending} onClick={()=>setActive(null)}><Plus/>新建工作流</button>{data?.runs.map(r=><button key={r.id} aria-pressed={active===r.id} onClick={()=>setActive(r.id)}><strong>{r.task.slice(0,50)}</strong><small>{labels[r.status]||r.status}</small></button>)}</div>
       <div className="workflow-detail">{!run?<form className="editor-form" onSubmit={e=>{e.preventDefault();void act(async()=>{const r=await window.apollo.workflows.create({templateId:selected,task,prompts});setActive(r.id);setTask('');});}}><label>流程<select value={selected} onChange={e=>{setSelected(e.target.value);setPrompts(data?.templates.find(t=>t.id===e.target.value)?.steps.map(s=>s.prompt)||[]);}}>{data?.templates.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><label>任务需求<textarea required maxLength={12000} value={task} onChange={e=>setTask(e.target.value)}/></label>{data?.templates.find(t=>t.id===selected)?.steps.map((s,i)=>s.kind==='model'&&<details key={i}><summary>{i+1}. {s.name}{s.approval?' · 审核后继续':''}</summary><label>步骤指令<textarea value={prompts[i]||''} maxLength={4000} onChange={e=>setPrompts(p=>p.map((v,n)=>n===i?e.target.value:v))}/></label></details>)}<button disabled={pending||!selected}><Plus/>创建工作流</button></form>:<>
         <h2>{run.name}</h2><p className="workflow-task">{run.task}</p><small>{run.projectRoot}</small><div className="management-toolbar"><span>{labels[run.status]}</span>{run.status!=='completed'&&run.status!=='running'&&<button disabled={pending} onClick={()=>void act(()=>advance(run))}>{run.status==='waiting'?<Check/>:<Play/>}{run.status==='waiting'?'批准并继续':run.status==='idle'?'开始':'确认后重试当前步骤'}</button>}<button disabled={!pending&&run.status!=='running'} onClick={()=>void window.apollo.workflows.cancel()}><Square/>停止</button><button title="刷新状态" onClick={()=>void load()}><RefreshCw/></button></div>{run.error&&<p className="management-error">{run.error}</p>}
