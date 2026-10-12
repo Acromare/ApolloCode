@@ -5,7 +5,7 @@ contextBridge.exposeInMainWorld('apollo', {
   minimize: () => ipcRenderer.invoke('window:minimize'),
   maximize: () => ipcRenderer.invoke('window:maximize'),
   getInfo: () => ipcRenderer.invoke('app:info'),
-  updates: {state:()=>ipcRenderer.invoke('update:state'),check:()=>ipcRenderer.invoke('update:check'),download:()=>ipcRenderer.invoke('update:download'),install:()=>ipcRenderer.invoke('update:install')},
+  updates: {state:()=>ipcRenderer.invoke('update:state'),check:()=>ipcRenderer.invoke('update:check'),download:()=>ipcRenderer.invoke('update:download')},
   getConfig: () => ipcRenderer.invoke('config:get'),
   getModels: (config) => ipcRenderer.invoke('connection:models', config),
   testConnection: (config) => ipcRenderer.invoke('connection:test', config),

@@ -1,13 +1,18 @@
-# GitHub Releases 更新
+# 发布版本更新通知
 
-公开源：https://github.com/Acromare/ApolloCode 。0.5.0 已发布。
+公开更新源：https://github.com/Acromare/ApolloCode 。
 
-1. 修改 package.json 版本并同步 lock 文件，运行构建和测试。
-2. 运行 node scripts/build-release.cjs；有真实签名配置时使用 --signed（见 SIGNING.md）。
-3. 发布对应版本源码和标签；标签 CI 可构建发布，本地构建不会自动上传。
-4. 同时上传本次构建的安装包、.exe.blockmap 和 latest.yml；不得修改安装包后复用旧哈希。
-5. 0.5.0 及以上可检查更新，用户批准下载，再批准退出安装。0.4.0 需手动安装一次。
+Apollo Code 0.6.1 起采用更新通知和手动下载安装：启动约 10 秒后检查，运行期间每 6 小时检查。有稳定新版时显示版本和更新说明，提供下载更新与稍后提醒。自动提醒等待当前 Agent 或工作流结束；稍后提醒暂停当前版本通知 24 小时，发布更高版本则重新提示。
 
-scripts/update-download-smoke.cjs 使用真实 NsisUpdater 和隔离的 0.5.0 版本适配器验证检测、下载和 SHA512；--public 检查真实 GitHub 源。不调用安装、不修改已有应用或注册表，此检查不能替代完整安装与重启验证。
+用户点击下载更新，会在默认浏览器打开对应 GitHub Release，从附件下载安装包后自行安装。软件不会后台下载安装包，不会自动安装或退出重启。设置中的更新页面保留手动检查和下载入口。
 
-当前没有签名证书或服务，安装包未签名；下载哈希不等于发布者签名。不得将 GitHub Token 或用户模型密钥打入安装包。
+发布步骤：
+
+1. 更新 package.json 与 lock 文件的版本，运行构建和测试。
+2. 运行 node scripts/build-release.cjs。有真实签名配置时使用 --signed（见 SIGNING.md）。
+3. 发布同版本的源码、标签与公开稳定 Release，填写面向用户的更新说明。
+4. 上传安装包、构建生成的 .exe.blockmap 和 latest.yml。通知检查读取版本信息，用户实际下载通过 Release 页面完成。
+
+已有 0.5.0/0.6.0 用户需要先手动安装 0.6.1，之后才有新版弹窗提醒。关闭软件或无法连接更新源时无法收到即时通知，下次联网启动会重新检查。
+
+当前没有签名证书或服务，安装包仍未签名。不要把 GitHub Token 或用户模型密钥打入安装包。

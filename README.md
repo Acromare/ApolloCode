@@ -40,8 +40,9 @@ Then give Apollo a concrete task:
 
 Choose **Chat** to talk, **Plan** to explore without edits, or **Agent** to work through changes with approval. **YOLO** is available when you want fewer interruptions; browser and desktop actions still ask for approval.
 
-## What's new in 0.6.0
+## What's new in 0.6.1
 
+- **A heads-up when there is something new.** Release notifications show the version and changes. Open the download page when you are ready, or ask Apollo to remind you later.
 - **More ways to build.** Run Shell commands, commit selected files, push changes, and prepare a GitHub draft PR. TS/JS language tools help inspect diagnostics, definitions, and references.
 - **A second pair of eyes.** Give the model browser or authorized Windows screenshots, then use clicks, typing, hotkeys, scrolling, and dragging to work with the page or application.
 - **Workflows you can shape.** Add model, Shell, or test steps; connect dependencies and choose what happens after success or failure.
@@ -86,3 +87,4 @@ Have a task Apollo could handle better? Open an [issue](https://github.com/Acrom
 ---
 
 Made for curious builders. Open a workspace. Follow an idea. **Enjoy! 💜**
+

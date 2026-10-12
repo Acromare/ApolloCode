@@ -1,6 +1,6 @@
 {
   "name": "apollo-code",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Apollo Code desktop workspace",
   "main": "desktop/main.cjs",
   "bin": {
@@ -61,7 +61,10 @@
       "dist/**/*",
       "package.json"
     ],
-    "asarUnpack": ["node_modules/typescript/**/*","node_modules/typescript-language-server/**/*"],
+    "asarUnpack": [
+      "node_modules/typescript/**/*",
+      "node_modules/typescript-language-server/**/*"
+    ],
     "win": {
       "target": "nsis",
       "icon": "desktop/icon.ico",

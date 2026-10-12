@@ -1,4 +1,4 @@
-const {app, BrowserWindow, ipcMain, dialog, safeStorage} = require('electron');
+const {app, BrowserWindow, ipcMain, dialog, safeStorage, shell} = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const {execFile} = require('node:child_process');
@@ -26,7 +26,7 @@ function createWindow() { mainWindow = new BrowserWindow({icon: path.join(__dirn
 app.whenReady().then(async() => {
   if(process.argv.includes('--self-test')){if(qaIndex<0)throw new Error('Self-test requires --qa-root.');await require('./self-test.cjs').run(app,safeStorage);app.exit(0);return;}
   runtime=registerRuntime({app,ipcMain,dialog,getWindow:()=>mainWindow,readConfig,saveConfig,vault});
-  require('./updates.cjs').registerUpdates({app,ipcMain,dialog,getWindow:()=>mainWindow,isBusy:()=>Boolean(runtime.running||runtime.workflowBusy),updater:require('electron-updater').autoUpdater});
+  require('./updates.cjs').registerUpdates({app,ipcMain,dialog,getWindow:()=>mainWindow,isBusy:()=>Boolean(runtime.running||runtime.workflowBusy),updater:require('electron-updater').autoUpdater,openExternal:url=>shell.openExternal(url)});
   ipcMain.handle('app:info',()=>({project:readConfig().projectRoot,version:app.getVersion()}));
   ipcMain.handle('window:close', () => mainWindow?.close());
   ipcMain.handle('window:minimize', () => mainWindow?.minimize());
