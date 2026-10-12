@@ -1,0 +1,8 @@
+.connection-actions{display:flex;gap:10px;flex-wrap:wrap}
+.connection-actions button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;padding:10px;border:1px solid #465064;border-radius:6px;background:#222a36}
+.connection-status{color:#89d6b0;line-height:1.5}
+.settings-dialog .notice{white-space:pre-wrap;overflow-wrap:anywhere}
+button:focus-visible,select:focus-visible{outline:2px solid #a9c8ef;outline-offset:3px}
+.top-actions .model-picker-button{width:auto;max-width:260px;padding:0 10px;display:flex;gap:8px}
+.model-picker-button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.provider-details summary{cursor:pointer;padding:12px 0;color:#c7d3e2;border-bottom:1px solid #394053}

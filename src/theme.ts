@@ -1,0 +1,35 @@
+import {useRef,useState} from 'react';
+import {flushSync} from 'react-dom';
+
+export type Theme='dark'|'light';
+const key='apollo-code-theme';
+export function savedTheme():Theme {
+  try{return localStorage.getItem(key)==='light'?'light':'dark';}catch{return 'dark';}
+}
+function apply(theme:Theme){document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme;}
+apply(savedTheme());
+
+export function useTheme(){
+  const [theme,setTheme]=useState<Theme>(savedTheme),[switching,setSwitching]=useState(false);
+  const locked=useRef(false);
+  async function toggle(button:HTMLButtonElement){
+    if(locked.current)return;
+    locked.current=true;setSwitching(true);
+    const next:Theme=theme==='dark'?'light':'dark';
+    const commit=()=>{apply(next);setTheme(next);try{localStorage.setItem(key,next);}catch{/* Theme remains usable when storage is unavailable. */}};
+    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+    const radius=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+    try{
+      if(!document.startViewTransition||reduced){commit();return;}
+      const transition=document.startViewTransition(()=>flushSync(commit));
+      await transition.ready;
+      const animation=document.documentElement.animate({clipPath:[`circle(0px at ${x}px ${y}px)`,`circle(${radius}px at ${x}px ${y}px)`]},
+        {duration:620,easing:'cubic-bezier(.25,.8,.25,1)',fill:'both',pseudoElement:'::view-transition-new(root)'});
+      await animation.finished;
+      await transition.finished;
+    }catch{commit();}
+    finally{locked.current=false;setSwitching(false);}
+  }
+  return {theme,switching,toggle};
+}

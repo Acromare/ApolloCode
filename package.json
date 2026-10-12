@@ -1,0 +1,87 @@
+{
+  "name": "apollo-code",
+  "version": "0.5.0",
+  "description": "Apollo Code desktop workspace",
+  "main": "desktop/main.cjs",
+  "bin": {
+    "apollo-code": "bin/apollo.cjs",
+    "apollo": "bin/apollo.cjs"
+  },
+  "files": [
+    "bin",
+    "desktop",
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "npm run build && electron .",
+    "build": "vite build && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "make": "npm run build && electron-builder --win nsis --x64",
+    "make:portable": "npm run build && electron-builder --win portable --x64",
+    "test": "node --test test/connection.test.cjs test/runtime.test.cjs test/mcp.test.cjs test/workflows.test.cjs test/updates.test.cjs",
+    "test:automation": "electron scripts/automation-smoke.cjs",
+    "test:native": "node scripts/native-smoke.cjs",
+    "test:ui": "electron scripts/ui-smoke.cjs",
+    "test:theme": "electron scripts/theme-smoke.cjs",
+    "test:activity": "electron scripts/activity-smoke.cjs",
+    "package:verify": "npm run build && npm pack --dry-run",
+    "prepack": "npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  },
+  "build": {
+    "publish": [{"provider":"github","owner":"Acromare","repo":"ApolloCode","releaseType":"release"}],
+    "appId": "com.apollocode.desktop",
+    "productName": "Apollo Code",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "desktop/icon.ico",
+      "artifactName": "Apollo-Code-Setup-${version}-${arch}.${ext}",
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Apollo Code",
+      "installerIcon": "desktop/icon.ico",
+      "uninstallerIcon": "desktop/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": false
+    },
+    "portable": {
+      "artifactName": "Apollo-Code-Portable-${version}-${arch}.${ext}"
+    }
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "diff": "^9.0.0",
+    "electron-updater": "^6.8.9",
+    "js-tiktoken": "^1.0.21",
+    "lucide-react": "^1.55.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "yaml": "^2.9.1"
+  }
+}

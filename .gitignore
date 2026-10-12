@@ -1,0 +1,8 @@
+node_modules/
+dist/
+release*/
+work/
+.env
+.env.*
+.apollocode/
+*.log

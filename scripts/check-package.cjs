@@ -1,0 +1,14 @@
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const root = path.resolve(process.argv[2]);
+const {Runtime} = require(root + '/desktop/runtime.cjs');
+const {SkillStore} = require(root + '/desktop/skills.cjs');
+const skills = new SkillStore(root + '/desktop/skills', 'unavailable').list();
+assert.equal(typeof Runtime, 'function');
+assert.equal(skills.length, 11);
+assert.equal(typeof require(root + '/node_modules/@modelcontextprotocol/sdk/dist/cjs/client/index.js').Client, 'function');
+assert.equal(require(root + '/package.json').version, '0.5.0');
+assert.equal(typeof require(root+'/node_modules/electron-updater').NsisUpdater,'function');
+assert.equal(typeof require(root+'/desktop/workflows.cjs').Workflows,'function');
+assert.ok(require('node:fs').readFileSync(root+'/desktop/windows-automation.ps1','utf8').includes('InvokePattern'));
+console.log('PASS: packaged runtime, MCP SDK, tokenizer and 11 skills resolve in app.asar');

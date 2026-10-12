@@ -1,0 +1,25 @@
+name: Windows Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx electron-builder --win nsis --x64 --publish never
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/Apollo-Code-Setup-*-x64.exe
+            release/Apollo-Code-Setup-*-x64.exe.blockmap
+            release/latest.yml
