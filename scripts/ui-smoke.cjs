@@ -14,7 +14,7 @@ app.whenReady().then(async()=>{
     const errors=[];window.webContents.on('console-message',event=>{if(event.level>=3)errors.push(event.message);});
     await window.loadFile(path.join(__dirname,'../dist/index.html'));
     const wait=()=>new Promise(resolve=>setTimeout(resolve,500));
-    const clickNav=async label=>{await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.sidebar nav button')).find(b=>b.textContent==='"+label+"').click()");await wait();await window.webContents.executeJavaScript("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");};
+    const clickNav=async label=>{await window.webContents.executeJavaScript("document.querySelector('.sidebar nav button[data-page=\\\""+label+"\\\"]').click()");await wait();await window.webContents.executeJavaScript("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");};
     await wait();await clickNav('Skills');
     assert.ok(await window.webContents.executeJavaScript("document.querySelectorAll('.skill-row').length>=9"));
     await window.webContents.executeJavaScript("document.querySelector('.skill-row input').click()");await wait();
@@ -34,8 +34,20 @@ app.whenReady().then(async()=>{
     await new Promise(resolve=>setTimeout(resolve,1000));
     assert.equal(await window.webContents.executeJavaScript("document.querySelector('.settings-dialog select[required]').value"),'available-a');
     await window.webContents.executeJavaScript("document.querySelector('.save').click()");await wait();assert.equal(config.model,'available-a');
+    assert.equal(await window.webContents.executeJavaScript("document.querySelector('.settings-section select').value"),'zh-CN','Default interface language');
+    await window.webContents.executeJavaScript("(()=>{const language=document.querySelector('.settings-section select');language.value='en-US';language.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait();
+    assert.equal(await window.webContents.executeJavaScript("document.querySelector('.management-page h1').textContent"),'Settings');
+    assert.equal(await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.sidebar nav button,.settings-tabs button,.settings-section h2')).some(el=>/[\\u4e00-\\u9fff]/.test(el.textContent))"),false,'Navigation and settings switch together');
+    for(const [page,title] of [['MCP','MCP tools'],['Skills','Skills'],['Automation','Browser & desktop'],['Workflows','Workflows'],['Workspace','Workspace']]){
+      await clickNav(page);assert.equal(await window.webContents.executeJavaScript("document.querySelector('main h1').textContent"),title);
+    }
+    await window.reload();await wait();await clickNav('Settings');
+    assert.equal(await window.webContents.executeJavaScript("document.querySelector('.settings-section select').value"),'en-US','Language persists after reload');
+    await window.webContents.executeJavaScript("document.querySelector('.model-picker-button').click()");await wait();
+    assert.equal(await window.webContents.executeJavaScript("document.querySelector('.settings-dialog h2').textContent"),'Models & providers');
     assert.equal(errors.length,0,'Renderer console errors: '+errors.join('\n'));
-    console.log('PASS: skills enablement, MCP editor, settings controls, 1440/900 layouts, automatic model discovery and save');
+    console.log('PASS: skills enablement, MCP editor, settings controls, 1440/900 layouts, model discovery/save, Chinese/English navigation and persistent language');
     await runtime.close();window.destroy();app.exit(0);
   }catch(error){console.error(error);await runtime?.close();window?.destroy();app.exit(1);}
 });
+

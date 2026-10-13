@@ -4,4 +4,4 @@ export type McpServer={id:string;transport:'stdio'|'http';command:string;args:st
 export type Usage={input:number;output:number;cached:number;cost:number;tools:number;requests:number;filteredTokens:number;lastContext:{estimatedTokens:number;omittedMessages:number;rawEstimatedTokens:number}|null};
 export type RuntimeState={settings:RuntimeSettings;skills:Skill[];externalPath:string;servers:McpServer[];usage:Usage;memory:{text:string};providers:{id:string;name:string;provider:string;model:string}[]};
 export type RuntimeEvent={type:string;requestId?:string;runId?:string;text?:string;name?:string;status?:string;step?:number;preview?:string;rollbackId?:string;input?:number;output?:number;cost?:number;alert?:boolean;estimatedTokens?:number;omittedMessages?:number;time?:number;callId?:string;arguments?:string;durationMs?:number};
-export type WorkTrace={started:number;ended?:number;status:'running'|'done'|'failed'|'interrupted';events:RuntimeEvent[]};
+export type WorkTrace={started:number;ended?:number;model?:string;mode?:string;status:'running'|'done'|'failed'|'interrupted';events:RuntimeEvent[]};

@@ -11,12 +11,12 @@ function registerRuntime({app,ipcMain,dialog,getWindow,readConfig,saveConfig,ski
     const requestId=runtime?.activeRequestId;
     const notify=status=>{const win=getWindow();if(requestId&&win&&!win.isDestroyed())win.webContents.send('runtime:event',{type:'approval',requestId,name:type,status,time:Date.now(),preview:redact(String(detail).slice(0,2000),[readConfig().apiKey])});};
     const log=allowed=>{if(runtime)fs.appendFileSync(path.join(runtime.dir,'approvals.log'),JSON.stringify({time:new Date().toISOString(),type,allowed,detail:redact(String(detail).slice(0,20000),[readConfig().apiKey])})+'\n');return allowed;};
-    if((runtime?.executionMode||runtime?.settings().mode)==='yolo'&&!['enable-yolo','mcp-connect','browser-action','computer-action','workflow-test','memory','git-push','github-pr'].includes(type))return log(true);
+    if((runtime?.executionMode||runtime?.settings().mode)==='yolo'&&!['enable-yolo','mcp-connect','browser-action','computer-action','workflow-test','memory','git-push','github-pr','file-create'].includes(type))return log(true);
     notify('waiting');
     const result=await dialog.showMessageBox(getWindow(),{type:'question',title:'Apollo Code · 操作确认',message:type==='enable-yolo'?'启用 YOLO 自动执行？':type==='patch'?'应用以下补丁？':'允许此操作？',detail:String(detail).slice(0,20000),buttons:['取消','允许'],defaultId:0,cancelId:0,noLink:true});
     const allowed=result.response===1&&!runtime?.running?.signal.aborted;notify(allowed?'approved':'rejected');return log(allowed);
   };
-  runtime=new Runtime({dataDir:path.join(app.getPath('userData'),'runtime'),skillDir:skillDir||path.join(app.getPath('home'),'.apollocode','skills'),getConfig:readConfig,approve,vault,emit:event=>{const window=getWindow();if(window&&!window.isDestroyed())window.webContents.send('runtime:event',event);}});
+  runtime=new Runtime({dataDir:path.join(app.getPath('userData'),'runtime'),skillDir:skillDir||path.join(app.getPath('home'),'.apollocode','skills'),getConfig:readConfig,approve,vault,folders:{desktop:app.getPath('desktop'),documents:app.getPath('documents'),downloads:app.getPath('downloads')},emit:event=>{const window=getWindow();if(window&&!window.isDestroyed())window.webContents.send('runtime:event',event);}});
   runtime.workflows=new Workflows(runtime);
   runtime.browser=new BrowserTools({BrowserWindow:require('electron').BrowserWindow,approve});
   runtime.computer=new ComputerTools(approve);

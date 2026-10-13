@@ -6,11 +6,20 @@ const {ProjectTools}=require('../desktop/project-tools.cjs');
 const {LanguageTools}=require('../desktop/lsp.cjs');
 const {Vault}=require('../desktop/vault.cjs');
 const {Workflows}=require('../desktop/workflows.cjs');
+const {PersonalFiles}=require('../desktop/personal-files.cjs');
 function fixture(t,fetcher,approve=async()=>true){
   const dir=fs.mkdtempSync(path.join(__dirname,'../work/capabilities-')),project=path.join(dir,'project');fs.mkdirSync(project);
   const runtime=new Runtime({dataDir:path.join(dir,'state'),skillDir:path.join(dir,'skills'),getConfig:()=>({provider:'openai',baseUrl:'https://example.invalid/v1',model:'fixture',apiKey:'fixture-secret',projectRoot:project}),approve,emit:()=>{},fetcher});
   t.after(async()=>{await runtime.close();fs.rmSync(dir,{recursive:true,force:true});});return {runtime,project,dir};
 }
+test('personal file tool creates and verifies a new Desktop-style file without a project',async t=>{
+  const dir=fs.mkdtempSync(path.join(__dirname,'../work/personal-files-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const files=new PersonalFiles({folders:{desktop:dir,documents:path.join(dir,'docs'),downloads:path.join(dir,'downloads')},approve:async()=>true});
+  const result=await files.create({folder:'desktop',path:'Apollo-test.txt',content:'created by Apollo\n'});
+  assert.equal(result.ok,true);assert.equal(result.verified,true);assert.equal(fs.readFileSync(path.join(dir,'Apollo-test.txt'),'utf8'),'created by Apollo\n');
+  await assert.rejects(files.create({folder:'desktop',path:'Apollo-test.txt',content:'overwrite'}),/已存在/);
+  await assert.rejects(files.create({folder:'desktop',path:'..\\outside.txt',content:'no'}),/选定的个人目录/);
+});
 const response=message=>new Response(JSON.stringify({choices:[{message}],usage:{prompt_tokens:12,completion_tokens:4}}),{headers:{'Content-Type':'application/json'}});
 test('vault migrates plaintext, decrypts after reopen and fails closed when encryption is unavailable',t=>{
   const {dir}=fixture(t);const file=path.join(dir,'credentials.json'),key=crypto.randomBytes(32);

@@ -1,6 +1,6 @@
 {
   "name": "apollo-code",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Apollo Code desktop workspace",
   "main": "desktop/main.cjs",
   "bin": {
@@ -95,6 +95,8 @@
     "lucide-react": "^1.55.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "typescript": "^6.0.3",
     "typescript-language-server": "^5.3.0",
     "yaml": "^2.9.1"

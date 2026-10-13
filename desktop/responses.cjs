@@ -25,6 +25,7 @@ async function responsesTurn(config,system,messages,tools,maxOutput,signal,emit,
     const raw=frame.split('\n').filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trim()).join('\n');if(!raw||raw==='[DONE]')return;
     const value=JSON.parse(raw);if(value.type==='error'||value.type==='response.failed')throw new Error(value.message||value.error?.message||value.response?.error?.message||'Responses 流式请求失败。');
     if(value.type==='response.output_text.delta'){content+=value.delta;emit({type:'delta',text:value.delta});}
+    if(value.type==='response.reasoning_summary_text.delta'&&value.delta)emit({type:'reasoning_summary',text:value.delta});
     if(value.type==='response.output_item.added'&&value.item.type==='function_call')calls.set(value.output_index,{id:value.item.call_id,type:'function',function:{name:value.item.name,arguments:value.item.arguments||''}});
     if(value.type==='response.function_call_arguments.delta'){const call=calls.get(value.output_index);if(call)call.function.arguments+=value.delta;}
     if(value.type==='response.output_item.done'&&value.item.type==='function_call')calls.set(value.output_index,{id:value.item.call_id,type:'function',function:{name:value.item.name,arguments:value.item.arguments||'{}'}});

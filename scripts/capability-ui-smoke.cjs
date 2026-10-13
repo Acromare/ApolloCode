@@ -9,7 +9,7 @@ app.whenReady().then(async()=>{
     win=new BrowserWindow({show:false,width:1440,height:960,webPreferences:{preload:path.join(__dirname,'../desktop/preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,backgroundThrottling:false}});
     const js=code=>win.webContents.executeJavaScript(code),wait=ms=>new Promise(r=>setTimeout(r,ms));
     await win.loadFile(path.join(__dirname,'../dist/index.html'));await wait(500);
-    const nav=async name=>{await js(`Array.from(document.querySelectorAll('.sidebar nav button')).find(b=>b.textContent==='${name}').click()`);await wait(150);};
+    const nav=async name=>{await js(`document.querySelector('.sidebar nav button[data-page="${name}"]').click()`);await wait(150);};
     await nav('Workflows');await js("Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('新建节点图')).click()");await wait(100);
     await js("Array.from(document.querySelectorAll('.workflow-editor button')).find(b=>b.textContent.includes('添加节点')).click()");await wait(100);
     assert.equal(await js("document.querySelectorAll('.workflow-graph g[role=button]').length"),2);
@@ -26,3 +26,4 @@ app.whenReady().then(async()=>{
     console.log('PASS: node graph editing/connections/save/reload, memory settings persistence, and API protocol control in actual Electron UI');await runtime.close();win.destroy();app.exit(0);
   }catch(error){console.error(error);await runtime?.close();win?.destroy();app.exit(1);}
 });
+

@@ -1,4 +1,6 @@
-# Apollo Code 0.6.1 功能状态
+# Apollo Code 0.7.0 功能状态
+
+0.7.0 新增：聊天与设置界面重构，简体中文 / English 界面切换与持久保存，多行自动增高输入框，文本附件拖放/粘贴，输入区执行模式与模型入口，主题一致的输入框与控件，新 Apollo Logo 和 Windows 多尺寸图标。中文输入法确认文字不会误发送，多行草稿发送后输入框恢复高度。
 
 本版新增：Responses/Chat Completions 协议选择、任意 Shell 审批、Git 指定文件提交与推送、GitHub 草稿 PR、TypeScript/JavaScript LSP、最多三个并行只读子 Agent、浏览器/Windows 截图与像素操作、可编辑无环工作流图、语义摘要与可选自动记忆、DPAPI 凭证加密、真实签名构建与验证入口。
 
@@ -8,7 +10,7 @@
 
 ## 已验证
 
-- 40 项自动测试、构建与类型检查通过。
+- 41 项自动测试、构建与类型检查通过。
 - 用户保存的 www.kldai.cc / gpt-5.5 完成读取文件、修改代码、运行测试的真实流程。最初的 Upstream access forbidden 原因未被单独证明，不能据此认定密钥无效。
 - 浏览器真实截图、画布拖拽、文字/热键、iframe 与密码拦截；Windows 授权窗口截图、像素点击和 Unicode 输入通过。
 - 打包后独立检查：运行依赖、11 个技能、真实 LSP 诊断、实际 Shell、Windows 凭证加密与重新读取通过。
