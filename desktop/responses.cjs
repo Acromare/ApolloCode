@@ -16,7 +16,7 @@ function output(value){
   return {content:(value.output||[]).filter(item=>item.type==='message').flatMap(item=>(item.content||[]).filter(c=>c.type==='output_text').map(c=>c.text)).join('\n'),tools:(value.output||[]).filter(item=>item.type==='function_call').map(item=>({id:item.call_id,type:'function',function:{name:item.name,arguments:item.arguments||'{}'}})),usage:value.usage||{}};
 }
 async function responsesTurn(config,system,messages,tools,maxOutput,signal,emit,fetcher){
-  const body={model:config.model,instructions:system,input:inputItems(messages),max_output_tokens:maxOutput,stream:true,store:false,...(tools.length?{tools:tools.map(t=>({type:'function',name:t.name,description:t.description,parameters:t.parameters,strict:false}))}:{})};
+  const body={model:config.model,...(system?{instructions:system}:{}),input:inputItems(messages),max_output_tokens:maxOutput,stream:true,store:false,...(config.reasoningEffort&&config.reasoningEffort!=='auto'?{reasoning:{effort:config.reasoningEffort}}:{}),...(tools.length?{tools:tools.map(t=>({type:'function',name:t.name,description:t.description,parameters:t.parameters,strict:false}))}:{})};
   const response=await fetcher(connection.normalize(config).baseUrl+'/responses',{method:'POST',headers:connection.headers(config),body:JSON.stringify(body),signal,redirect:'error'});
   if(!response.ok){let data;try{data=await response.json();}catch{}throw new Error(connection.diagnostic(response.status,data?.error?.message,config.apiKey));}
   if(!String(response.headers.get('content-type')).includes('text/event-stream')){const result=output(await response.json());if(result.content)emit({type:'delta',text:result.content});return result;}

@@ -36,7 +36,7 @@ async function test(input, fetcher) {
   if (input.provider === 'claude') return {ok: false, error: '请在聊天页使用 Claude Code 的登录进行验证。'};
   try { const config = normalize(input); if (!config.model) throw new Error('请选择或填写模型 ID。'); if (config.provider !== 'ollama' && !config.apiKey) throw new Error('请填写 API Key。');
     const anthropic=config.provider==='anthropic',responses=protocol(config)==='responses';
-    const data=await request(config,anthropic?'/messages':responses?'/responses':'/chat/completions',responses?{model:config.model,input:'Reply OK.',max_output_tokens:64,store:false}:{model:config.model,...(anthropic||config.provider==='ollama'?{max_tokens:16}:{max_completion_tokens:64}),messages:[{role:'user',content:'Reply OK.'}]},fetcher);
+    const data=await request(config,anthropic?'/messages':responses?'/responses':'/chat/completions',responses?{model:config.model,input:'Reply OK.',max_output_tokens:config.reasoningEffort&&config.reasoningEffort!=='auto'?256:64,store:false,...(config.reasoningEffort&&config.reasoningEffort!=='auto'?{reasoning:{effort:config.reasoningEffort}}:{})}:{model:config.model,...(anthropic||config.provider==='ollama'?{max_tokens:16}:{max_completion_tokens:64}),messages:[{role:'user',content:'Reply OK.'}]},fetcher);
     const text=anthropic?data.content?.find(x=>x.type==='text')?.text:responses?(data.output||[]).flatMap(item=>(item.content||[]).filter(c=>c.type==='output_text').map(c=>c.text)).join('\n'):data.choices?.[0]?.message?.content;
     if(typeof text!=='string'||!text.trim())throw new Error('接口成功响应，但未返回文本。');return {ok:true,content:text,usage:data.usage}; }
   catch (error) { return {ok: false, error: error.message}; }

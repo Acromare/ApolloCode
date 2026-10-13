@@ -1,0 +1,34 @@
+const {app,BrowserWindow,ipcMain}=require('electron');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {registerUpdates}=require('../desktop/updates.cjs');
+const {registerRuntime}=require('../desktop/runtime-ipc.cjs');
+const root=fs.mkdtempSync(path.resolve(__dirname,'../work/update-ui-'));app.setPath('userData',root);
+let window,manager,runtime,fail=true,release='0.7.0';const opened=[],dialogs=[];
+const pause=()=>new Promise(r=>setTimeout(r,200));
+app.whenReady().then(async()=>{
+  ipcMain.handle('config:get',()=>({}));
+  runtime=registerRuntime({app,ipcMain,dialog:{showMessageBox:async()=>({response:1})},getWindow:()=>window,readConfig:()=>({projectRoot:root}),saveConfig:()=>{},skillDir:path.join(root,'skills')});
+  ipcMain.handle('project:get',()=>({root,selected:true}));
+  // Only the settings IPC needed to mount the page; all update IPC uses production code.
+  manager=registerUpdates({app:{isPackaged:true,getVersion:()=> '0.6.1',getPath:()=>root},ipcMain,dialog:{showMessageBox:async(_w,options)=>{dialogs.push(options);return {response:1};}},getWindow:()=>window,isBusy:()=>false,fetchRelease:async()=>{if(fail)throw Object.assign(Error('network timeout'),{code:'UPDATE_TIMEOUT'});return {version:release,releaseNotes:'Update fixes'};},openExternal:async url=>opened.push(url),schedule:false});
+  window=new BrowserWindow({show:false,width:1100,height:760,webPreferences:{offscreen:true,preload:path.resolve(__dirname,'../desktop/preload.cjs'),contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  await window.loadFile(path.resolve(__dirname,'../dist/index.html'));await pause();
+  const js=source=>window.webContents.executeJavaScript(source);
+  await js("document.querySelector('.sidebar nav button[data-page=Settings]').click()");await pause();
+  await js("Array.from(document.querySelectorAll('.settings-tabs button')).find(b=>b.textContent==='更新').click()");await pause();
+  await js("document.querySelector('.update-controls button').click()");await pause();
+  assert.ok(await js("document.querySelector('.update-controls [role=alert]').textContent.includes('超时')"));
+  assert.equal(await js("document.querySelectorAll('.update-controls button')[1].disabled"),false);
+  await js("document.querySelectorAll('.update-controls button')[1].click()");await pause();assert.equal(opened[0],'https://github.com/Acromare/ApolloCode/releases/latest');
+  fail=false;await js("document.querySelector('.update-controls button').click()");await pause();
+  assert.equal(dialogs.length,1);assert.ok(await js("document.querySelector('.update-controls').textContent.includes('0.7.0')"));
+  await js("document.querySelectorAll('.update-controls button')[1].click()");await pause();assert.equal(opened[1],'https://github.com/Acromare/ApolloCode/releases/tag/v0.7.0');
+  await js("localStorage.setItem('apollo-language','en-US');window.dispatchEvent(new Event('apollo-language'))");await pause();
+  assert.ok(await js("document.querySelector('.update-controls').textContent.includes('Update available')"));
+  fail=true;await js("document.querySelector('.update-controls button').click()");await pause();
+  assert.ok(await js("document.querySelector('.update-controls [role=alert]').textContent.includes('timed out')"));
+  assert.ok(await js("!/[\\u4e00-\\u9fff]/.test(document.querySelector('.update-controls').textContent)"));
+  await js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await pause();
+  fs.writeFileSync(path.join(root,'error-english.png'),(await window.webContents.capturePage()).toPNG());
+  console.log('PASS: update timeout recovery, always accessible download page, available release notification, retry and English status/error labels');
+}).then(async()=>{manager?.close();await runtime?.close();window?.destroy();app.exit(0);}).catch(async e=>{console.error(e);manager?.close();await runtime?.close();window?.destroy();app.exit(1);});

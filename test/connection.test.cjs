@@ -32,3 +32,10 @@ test('connection test uses selected model with a small generation', async () => 
   });
   assert.equal(result.ok, true);
 });
+test('connection test exercises explicit Responses reasoning effort',async()=>{
+  const result=await connection.test({...config,model:'gpt-6.1-sol',reasoningEffort:'high'},async(_url,options)=>{
+    const body=JSON.parse(options.body);assert.deepEqual(body.reasoning,{effort:'high'});assert.equal(body.max_output_tokens,256);
+    return {ok:true,text:async()=>JSON.stringify({output:[{type:'message',content:[{type:'output_text',text:'OK'}]}]})};
+  });
+  assert.equal(result.ok,true);
+});

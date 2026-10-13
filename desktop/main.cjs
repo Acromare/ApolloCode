@@ -1,4 +1,4 @@
-const {app, BrowserWindow, ipcMain, dialog, safeStorage, shell} = require('electron');
+const {app, BrowserWindow, ipcMain, dialog, safeStorage, shell, net} = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const {execFile} = require('node:child_process');
@@ -11,7 +11,7 @@ let mainWindow;
 let runtime;
 const {registerRuntime}=require('./runtime-ipc.cjs');
 const configPath = path.join(app.getPath('userData'), 'config.json');
-const defaults = {provider: 'openai', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', apiKey: '', apiMode:'auto', projectRoot: '', trust: 'confirm'};
+const defaults = {provider: 'openai', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', apiKey: '', apiMode:'auto', reasoningEffort:'auto', projectRoot: '', trust: 'confirm'};
 function readConfig() { return {...defaults,...vault.read(configPath,{})}; }
 function saveConfig(next) { vault.write(configPath,next); }
 function endpoint(base, suffix) { return new URL(base.replace(/\/+$/, '') + suffix).toString(); }
@@ -26,7 +26,7 @@ function createWindow() { mainWindow = new BrowserWindow({icon: path.join(__dirn
 app.whenReady().then(async() => {
   if(process.argv.includes('--self-test')){if(qaIndex<0)throw new Error('Self-test requires --qa-root.');await require('./self-test.cjs').run(app,safeStorage);app.exit(0);return;}
   runtime=registerRuntime({app,ipcMain,dialog,getWindow:()=>mainWindow,readConfig,saveConfig,vault});
-  require('./updates.cjs').registerUpdates({app,ipcMain,dialog,getWindow:()=>mainWindow,isBusy:()=>Boolean(runtime.running||runtime.workflowBusy),updater:require('electron-updater').autoUpdater,openExternal:url=>shell.openExternal(url)});
+  require('./updates.cjs').registerUpdates({app,ipcMain,dialog,getWindow:()=>mainWindow,isBusy:()=>Boolean(runtime.running||runtime.workflowBusy),fetchRelease:()=>require('./release-api.cjs').fetchLatestRelease({electronFetch:net.fetch.bind(net)}),getLanguage:async()=>mainWindow&&!mainWindow.isDestroyed()?mainWindow.webContents.executeJavaScript("localStorage.getItem('apollo-language')"): 'zh-CN',openExternal:url=>shell.openExternal(url)});
   ipcMain.handle('app:info',()=>({project:readConfig().projectRoot,version:app.getVersion()}));
   ipcMain.handle('window:close', () => mainWindow?.close());
   ipcMain.handle('window:minimize', () => mainWindow?.minimize());
@@ -34,7 +34,7 @@ app.whenReady().then(async() => {
   ipcMain.handle('config:get', () => readConfig());
   ipcMain.handle('connection:models', (_, config) => connection.models(config));
   ipcMain.handle('connection:test', (_, config) => connection.test(config));
-  ipcMain.handle('config:save', (_, input) => { if(runtime.running||runtime.workflowBusy)throw new Error('请先停止当前任务。'); const previous = readConfig(); const next = {...previous, provider: ['openai', 'anthropic', 'claude', 'ollama'].includes(input?.provider) ? input.provider : 'openai', baseUrl: String(input?.baseUrl || '').trim(), model: String(input?.model || '').trim(), apiKey: String(input?.apiKey || '').trim(), apiMode:['auto','chat','responses'].includes(input?.apiMode)?input.apiMode:'auto', trust: ['confirm', 'session', 'yolo'].includes(input?.trust) ? input.trust : previous.trust}; if (next.provider !== 'claude') next.baseUrl = connection.normalize(next).baseUrl; saveConfig(next); runtime.rememberProvider(next); return {ok: true}; });
+  ipcMain.handle('config:save', (_, input) => { if(runtime.running||runtime.workflowBusy)throw new Error('请先停止当前任务。'); const previous = readConfig(); const next = {...previous, provider: ['openai', 'anthropic', 'claude', 'ollama'].includes(input?.provider) ? input.provider : 'openai', baseUrl: String(input?.baseUrl || '').trim(), model: String(input?.model || '').trim(), apiKey: String(input?.apiKey || '').trim(), apiMode:['auto','chat','responses'].includes(input?.apiMode)?input.apiMode:'auto', reasoningEffort:['auto','low','medium','high','xhigh'].includes(input?.reasoningEffort)?input.reasoningEffort:'auto', trust: ['confirm', 'session', 'yolo'].includes(input?.trust) ? input.trust : previous.trust}; if (next.provider !== 'claude') next.baseUrl = connection.normalize(next).baseUrl; saveConfig(next); runtime.rememberProvider(next); return {ok: true}; });
   ipcMain.handle('project:get', () => { const root = readConfig().projectRoot; return {root, selected: Boolean(root && fs.existsSync(root))}; });
   ipcMain.handle('project:choose', async () => { if(runtime.running||runtime.workflowBusy)throw new Error('请先停止当前任务。'); const result = await dialog.showOpenDialog(mainWindow, {properties: ['openDirectory', 'createDirectory']}); if (result.canceled || !result.filePaths[0]) return {ok: false}; const config = readConfig(); config.projectRoot = path.resolve(result.filePaths[0]); saveConfig(config); runtime.tools.audit('project-selected',config.projectRoot); return {ok: true, root: config.projectRoot}; });
   ipcMain.handle('project:files', (_,relative='.')=>runtime.tools.list(relative).map(item=>({...item,path:path.join(relative,item.name)})));

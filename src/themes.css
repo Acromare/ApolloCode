@@ -68,7 +68,7 @@
 .conversation,.content-page,.management-page{color:var(--text)}
 .conversation header,.message,.management-page header{border-color:var(--border)}
 .conversation header button{background:var(--accent-bg);color:var(--accent)}
-.message span{color:var(--accent)}
+.message>span{color:var(--accent)}
 .message.user span,.content-page p{color:var(--muted)}
 .message.user{width:fit-content;max-width:85%;margin:8px 0 20px auto;padding:12px 16px;background:var(--surface-alt);border:1px solid var(--border);border-radius:14px 14px 4px 14px}
 .message.user>span{display:block;text-align:right}

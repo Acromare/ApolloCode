@@ -6,7 +6,7 @@ Apollo Code is a desktop AI workspace for the moments when a conversation needs 
 
 **Talk it through. Make a plan. Let Apollo help you build.**
 
-[📦 Download for Windows](https://github.com/Acromare/ApolloCode/releases/latest) · [🚀 Quick start](#quick-start) · [✨ What's new](#whats-new-in-070) · [📖 Documentation](#documentation)
+[📦 Download for Windows](https://github.com/Acromare/ApolloCode/releases/latest) · [🚀 Quick start](#quick-start) · [✨ What's new](#whats-new-in-071) · [📖 Documentation](#documentation)
 
 ## A workspace for your next idea
 
@@ -40,7 +40,11 @@ Then give Apollo a concrete task:
 
 Choose **Chat** to talk, **Plan** to explore without edits, or **Agent** to work through changes with approval. **YOLO** is available when you want fewer interruptions; browser and desktop actions still ask for approval.
 
-## What's new in 0.7.0
+## What's new in 0.7.1
+
+- **More reliable release checks.** Checks use GitHub's release API with a bounded timeout and a fallback connection. The download page stays accessible when a check fails, with clear recovery messages in your selected language. Users on older versions need to install 0.7.1 manually once to receive this fix.
+
+### Included from 0.7.0
 
 - **A fresh Apollo identity.** A new logo across the app and Windows icons, with black and light variants that follow your theme.
 - **A calmer conversation space.** A multiline editor with attachment drop/paste, execution mode and model controls, clear send/stop states, and Markdown replies. The day and night artwork stays familiar.

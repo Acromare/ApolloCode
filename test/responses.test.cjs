@@ -19,3 +19,13 @@ test('Responses nonstream replies and failed terminal events produce distinct su
   const result=await modelTurn(config,'system',[{role:'user',content:'hi'}],[],64,null,()=>{},async()=>new Response(JSON.stringify({output:[{type:'message',content:[{type:'output_text',text:'OK'}]}],usage:{input_tokens:1,output_tokens:1}}),{headers:{'Content-Type':'application/json'}}));assert.equal(result.content,'OK');
   await assert.rejects(modelTurn(config,'system',[{role:'user',content:'hi'}],[],64,null,()=>{},async()=>new Response('data: {"type":"response.failed","response":{"error":{"message":"quota exceeded"}}}\n\n',{headers:{'Content-Type':'text/event-stream'}})),/quota exceeded/);
 });
+test('reasoning effort is sent only when explicitly chosen on Responses',async()=>{
+  let body;
+  const reply=async(_url,options)=>{body=JSON.parse(options.body);return new Response(JSON.stringify({output:[{type:'message',content:[{type:'output_text',text:'OK'}]}]}),{headers:{'Content-Type':'application/json'}});};
+  await modelTurn({...config,reasoningEffort:'high'},'',[{role:'user',content:'hi'}],[],64,null,()=>{},reply);
+  assert.deepEqual(body.reasoning,{effort:'high'});assert.equal('instructions' in body,false);
+  await modelTurn({...config,reasoningEffort:'auto'},'',[{role:'user',content:'hi'}],[],64,null,()=>{},reply);
+  assert.equal('reasoning' in body,false);
+  await modelTurn({...config,apiMode:'chat',reasoningEffort:'high'},'',[{role:'user',content:'hi'}],[],64,null,()=>{},async(_url,options)=>{body=JSON.parse(options.body);return new Response(JSON.stringify({choices:[{message:{content:'OK'}}]}),{headers:{'Content-Type':'application/json'}});});
+  assert.equal('reasoning' in body,false);assert.deepEqual(body.messages,[{role:'user',content:'hi'}]);
+});

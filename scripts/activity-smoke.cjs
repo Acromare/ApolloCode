@@ -12,6 +12,9 @@ app.whenReady().then(async()=>{
     ipcMain.handle('chat:send',async(_,payload)=>{
       assert.ok(payload.messages.every(m=>!m.trace),'Trace must never enter model context');
       const event=value=>win.webContents.send('runtime:event',{...value,requestId:payload.requestId,time:Date.now()});
+      if(payload.messages.at(-1)?.content==='Plain reply'){
+        await new Promise(r=>setTimeout(r,250));event({type:'delta',text:'Hello.'});return {ok:true,content:'Hello.'};
+      }
       event({type:'step',step:1});event({type:'tool',name:'read_file',callId:'read',status:'running',arguments:'{"path":"sample.ts","start":1,"end":10}'});
       await new Promise(r=>setTimeout(r,1500));
       event({type:'tool',name:'read_file',callId:'read',status:'done',durationMs:1500,preview:'1: export const sample = true;'});
@@ -25,16 +28,29 @@ app.whenReady().then(async()=>{
     await js("document.querySelector('.composer textarea').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',isComposing:true,bubbles:true}))");await wait(100);
     assert.equal(await js("document.querySelectorAll('.message').length"),0,'IME confirmation must not send a message');
     await js(`(()=>{const input=document.querySelector('.composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'Read sample.ts');input.dispatchEvent(new Event('input',{bubbles:true}));})()`);await wait(100);await js("document.querySelector('.send').click()");await wait(400);
-    assert.equal(await js("document.querySelector('.work-details').open"),false);
+    assert.equal(await js("document.querySelector('.work-details').open"),false,'Tool activity stays compact while running');
     assert.match(await js("document.querySelector('.work-details summary').textContent"),/工作中/);
-    await js("document.querySelector('.work-details summary').click()");assert.equal(await js("document.querySelector('.work-details').open"),true);
     assert.match(await js("document.querySelector('.work-details').textContent"),/sample.ts/);
+    await js("document.querySelector('.work-details summary').click()");
+    assert.equal(await js("document.querySelector('.work-details').open"),true,'Running activity expands on demand');
     await wait(1600);assert.match(await js("document.querySelector('.work-details summary').textContent"),/已完成/);
     assert.ok(await js("document.querySelector('.composer textarea').clientHeight < 60"),'Editor resets height after sending');
     assert.equal(await js("document.querySelector('.work-details').open"),false);
     await js("document.querySelector('.work-details summary').click()");
     await js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');fs.writeFileSync(path.join(work,'activity-expanded-1440.png'),(await win.webContents.capturePage()).toPNG());
-    await win.reload();await wait(500);await js("document.querySelector('.sidebar-recents button').click()");await wait(100);
+    await js("document.querySelector('.sidebar .new-chat-button').click()");await wait(100);
+    await js("(()=>{const input=document.querySelector('.composer textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'Plain reply');input.dispatchEvent(new Event('input',{bubbles:true}));})()");await wait(100);await js("document.querySelector('.send').click()");await wait(50);
+    assert.ok(await js("!!document.querySelector('.work-inline')"),'Plain response uses a compact running status');
+    await wait(500);assert.equal(await js("document.querySelectorAll('.work-details,.work-inline').length"),0,'Completed plain response leaves no empty activity panel');
+    await js("document.querySelector('.sidebar nav button[data-page=Settings]').click()");await wait(150);
+    await js("(()=>{const field=Array.from(document.querySelectorAll('.settings-section select')).find(s=>Array.from(s.options).some(o=>o.value==='expanded'));field.value='hidden';field.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait(100);
+    assert.equal(await js("localStorage.getItem('apollo-work-display')"),'hidden');
+    await win.reload();await wait(500);await js("Array.from(document.querySelectorAll('.sidebar-recents button')).find(b=>b.title.includes('Read sample.ts')).click()");await wait(100);
+    assert.equal(await js("document.querySelectorAll('.work-details').length"),0,'Hidden completed activity persists after reload');
+    await js("document.querySelector('.sidebar nav button[data-page=Settings]').click()");await wait(100);
+    assert.equal(await js("Array.from(document.querySelectorAll('.settings-section select')).find(s=>Array.from(s.options).some(o=>o.value==='expanded')).value"),'hidden');
+    await js("(()=>{const field=Array.from(document.querySelectorAll('.settings-section select')).find(s=>Array.from(s.options).some(o=>o.value==='expanded'));field.value='auto';field.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait(100);
+    await js("Array.from(document.querySelectorAll('.sidebar-recents button')).find(b=>b.title.includes('Read sample.ts')).click()");await wait(100);
     assert.equal(await js("document.querySelector('.work-details').open"),false);assert.match(await js("document.querySelector('.work-details').textContent"),/export const sample/);
     win.setSize(900,700);await js("document.querySelector('.theme-toggle').click()");await wait(800);await js("document.querySelector('.work-details summary').click()");await js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');fs.writeFileSync(path.join(work,'activity-light-900.png'),(await win.webContents.capturePage()).toPNG());
     assert.equal(await js("document.querySelector('.messages').scrollWidth>document.querySelector('.messages').clientWidth"),false);
@@ -45,7 +61,7 @@ app.whenReady().then(async()=>{
     assert.match(await js("document.querySelector('.browser-preview').src"),/^data:image\/png/);
     fs.writeFileSync(path.join(work,'browser-live-preview.png'),(await win.webContents.capturePage()).toPNG());
     await runtime.browser.close();await wait(2200);assert.equal(await js("!!document.querySelector('.browser-preview')"),false);
-    console.log('PASS: collapsed live activity, elapsed time, tool detail, persisted trace, responsive light theme and real browser auto-preview');
+    console.log('PASS: inline plain status, no empty completed panel, persisted activity display, tool timeline, responsive light theme and browser preview');
     await runtime.close();await new Promise(r=>server.close(r));win.destroy();app.exit(0);
   }catch(error){console.error(error);await runtime?.close();server?.close();win?.destroy();app.exit(1);}
 });

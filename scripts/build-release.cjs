@@ -16,7 +16,7 @@ function signing(env,required=false){
 async function build(){
   const {build,Platform,Arch}=require('electron-builder');const options=signing(process.env,process.argv.includes('--signed'));
   const output=process.env.APOLLO_RELEASE_DIR||'release';
-  await build({targets:Platform.WINDOWS.createTarget('nsis',Arch.x64),publish:'never',config:{directories:{output},win:options}});
+  await build({targets:Platform.WINDOWS.createTarget('nsis',Arch.x64),publish:'never',config:{directories:{output},win:options,...(process.env.APOLLO_ELECTRON_DIST?{electronDist:path.resolve(process.env.APOLLO_ELECTRON_DIST)}:{})}});
   if(options.signExecutable){
     const {execFileSync}=require('node:child_process');
     const files=[path.resolve(output,'win-unpacked','Apollo Code.exe'),...fs.readdirSync(output).filter(f=>/^Apollo-Code-Setup-.*\.exe$/.test(f)).map(f=>path.resolve(output,f))];

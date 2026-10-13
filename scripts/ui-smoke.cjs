@@ -15,7 +15,11 @@ app.whenReady().then(async()=>{
     await window.loadFile(path.join(__dirname,'../dist/index.html'));
     const wait=()=>new Promise(resolve=>setTimeout(resolve,500));
     const clickNav=async label=>{await window.webContents.executeJavaScript("document.querySelector('.sidebar nav button[data-page=\\\""+label+"\\\"]').click()");await wait();await window.webContents.executeJavaScript("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");};
-    await wait();await clickNav('Skills');
+    await wait();
+    assert.ok(await window.webContents.executeJavaScript("!!document.querySelector('.home-intro')"),'Home is a separate landing page');
+    await clickNav('Chat');assert.ok(await window.webContents.executeJavaScript("!!document.querySelector('.conversation-index')"),'Conversations have a separate index');
+    await clickNav('Home');assert.ok(await window.webContents.executeJavaScript("!!document.querySelector('.home-intro')"),'Home returns without opening a chat');
+    await clickNav('Skills');
     assert.ok(await window.webContents.executeJavaScript("document.querySelectorAll('.skill-row').length>=9"));
     await window.webContents.executeJavaScript("document.querySelector('.skill-row input').click()");await wait();
     assert.equal(runtime.settings().enabledSkills.length,runtime.skills.list().length-1);
@@ -31,9 +35,21 @@ app.whenReady().then(async()=>{
       fs.writeFileSync(path.join(work,'settings-'+width+'.png'),(await window.webContents.capturePage()).toPNG());
     }
     await window.webContents.executeJavaScript("document.querySelector('.model-picker-button').click()");
-    await new Promise(resolve=>setTimeout(resolve,1000));
-    assert.equal(await window.webContents.executeJavaScript("document.querySelector('.settings-dialog select[required]').value"),'available-a');
-    await window.webContents.executeJavaScript("document.querySelector('.save').click()");await wait();assert.equal(config.model,'available-a');
+    await wait();
+    assert.ok(await window.webContents.executeJavaScript("document.querySelector('.model-menu').textContent.includes('available-a')"));
+    fs.writeFileSync(path.join(work,'model-menu-900.png'),(await window.webContents.capturePage()).toPNG());
+    await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.model-menu button')).find(b=>b.textContent==='available-a').click()");await wait();assert.equal(config.model,'available-a');
+    await window.webContents.executeJavaScript("document.querySelector('.model-picker-button').click()");await wait();
+    assert.equal(await window.webContents.executeJavaScript("!!document.querySelector('.settings-dialog')"),false);
+    await window.webContents.executeJavaScript("document.querySelector('.model-menu-dismiss').click()");await wait();
+    await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.settings-tabs button')).find(b=>b.textContent.includes('供应商')).click()");await wait();
+    await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.management-page button')).find(b=>b.textContent.includes('连接供应商')).click()");await wait();
+    assert.ok(await window.webContents.executeJavaScript("!!document.querySelector('.settings-dialog input[list=provider-models]')"));
+    await window.webContents.executeJavaScript("(()=>{const matching=Array.from(document.querySelectorAll('.settings-dialog select')).find(s=>Array.from(s.options).some(o=>o.value==='xhigh'));matching.value='high';matching.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait();
+    await window.webContents.executeJavaScript("(()=>{const field=document.querySelector('.settings-dialog input[list=provider-models]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(field,'manual-model-id');field.dispatchEvent(new Event('input',{bubbles:true}));})()");await wait();
+    await window.webContents.executeJavaScript("document.querySelector('.save').click()");await wait();assert.equal(config.model,'manual-model-id');
+    assert.equal(config.reasoningEffort,'high');
+    await window.webContents.executeJavaScript("document.querySelector('.settings-tabs button').click()");await wait();
     assert.equal(await window.webContents.executeJavaScript("document.querySelector('.settings-section select').value"),'zh-CN','Default interface language');
     await window.webContents.executeJavaScript("(()=>{const language=document.querySelector('.settings-section select');language.value='en-US';language.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait();
     assert.equal(await window.webContents.executeJavaScript("document.querySelector('.management-page h1').textContent"),'Settings');
@@ -44,6 +60,9 @@ app.whenReady().then(async()=>{
     await window.reload();await wait();await clickNav('Settings');
     assert.equal(await window.webContents.executeJavaScript("document.querySelector('.settings-section select').value"),'en-US','Language persists after reload');
     await window.webContents.executeJavaScript("document.querySelector('.model-picker-button').click()");await wait();
+    await window.webContents.executeJavaScript("document.querySelector('.model-menu-dismiss').click()");await wait();
+    await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.settings-tabs button')).find(b=>b.textContent==='Models & providers').click()");await wait();
+    await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.management-page button')).find(b=>b.textContent.includes('Connect provider')).click()");await wait();
     assert.equal(await window.webContents.executeJavaScript("document.querySelector('.settings-dialog h2').textContent"),'Models & providers');
     assert.equal(errors.length,0,'Renderer console errors: '+errors.join('\n'));
     console.log('PASS: skills enablement, MCP editor, settings controls, 1440/900 layouts, model discovery/save, Chinese/English navigation and persistent language');
