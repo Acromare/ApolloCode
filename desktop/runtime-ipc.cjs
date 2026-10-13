@@ -5,13 +5,14 @@ const {redact}=require('./economy.cjs');
 const {Workflows}=require('./workflows.cjs');
 const {BrowserTools}=require('./browser-tools.cjs');
 const {ComputerTools}=require('./computer-tools.cjs');
+const {Scheduler}=require('./scheduler.cjs');
 function registerRuntime({app,ipcMain,dialog,getWindow,readConfig,saveConfig,skillDir,vault}){
   let runtime;
-  const approve=async(type,detail)=>{
+  const approve=async(type,detail,force=false)=>{
     const requestId=runtime?.activeRequestId;
     const notify=status=>{const win=getWindow();if(requestId&&win&&!win.isDestroyed())win.webContents.send('runtime:event',{type:'approval',requestId,name:type,status,time:Date.now(),preview:redact(String(detail).slice(0,2000),[readConfig().apiKey])});};
     const log=allowed=>{if(runtime)fs.appendFileSync(path.join(runtime.dir,'approvals.log'),JSON.stringify({time:new Date().toISOString(),type,allowed,detail:redact(String(detail).slice(0,20000),[readConfig().apiKey])})+'\n');return allowed;};
-    if((runtime?.executionMode||runtime?.settings().mode)==='yolo'&&!['enable-yolo','mcp-connect','browser-action','computer-action','workflow-test','memory','git-push','github-pr','file-create'].includes(type))return log(true);
+    if(!force&&(runtime?.executionMode||runtime?.settings().mode)==='yolo'&&!['enable-yolo','mcp-connect','browser-action','computer-action','workflow-test','memory','git-push','github-pr','file-create','learn-skill','skill-restore','schedule-enable','schedule-run','worktree-create','remote-terminal'].includes(type))return log(true);
     notify('waiting');
     const result=await dialog.showMessageBox(getWindow(),{type:'question',title:'Apollo Code · 操作确认',message:type==='enable-yolo'?'启用 YOLO 自动执行？':type==='patch'?'应用以下补丁？':'允许此操作？',detail:String(detail).slice(0,20000),buttons:['取消','允许'],defaultId:0,cancelId:0,noLink:true});
     const allowed=result.response===1&&!runtime?.running?.signal.aborted;notify(allowed?'approved':'rejected');return log(allowed);
@@ -20,7 +21,20 @@ function registerRuntime({app,ipcMain,dialog,getWindow,readConfig,saveConfig,ski
   runtime.workflows=new Workflows(runtime);
   runtime.browser=new BrowserTools({BrowserWindow:require('electron').BrowserWindow,approve});
   runtime.computer=new ComputerTools(approve);
+  runtime.scheduler=new Scheduler(runtime,{notify:event=>{const win=getWindow();if(win&&!win.isDestroyed())win.webContents.send('runtime:event',event);}});
+  ipcMain.handle('schedule:state',()=>runtime.scheduler.state());
+  ipcMain.handle('schedule:save',(_,input)=>runtime.scheduler.save(input));
+  ipcMain.handle('schedule:enable',(_,id,enabled)=>runtime.scheduler.enable(id,enabled===true));
+  ipcMain.handle('schedule:remove',(_,id)=>runtime.scheduler.remove(id));
+  ipcMain.handle('schedule:run',(_,id)=>runtime.scheduler.runNow(id));
+  ipcMain.handle('terminal:state',()=>runtime.terminal.state());
+  ipcMain.handle('terminal:save',(_,input)=>runtime.terminal.save(input));
   const idle=()=>{if(runtime.running||runtime.workflowBusy)throw new Error('请先停止当前任务。');};
+  const trees=()=>runtime.read('worktrees.json',[]).filter(t=>t.root?.toLowerCase()===readConfig().projectRoot?.toLowerCase());
+  const treeById=id=>{const tree=trees().find(t=>t.id===id);if(!tree||!fs.existsSync(tree.directory)||fs.lstatSync(tree.directory).isSymbolicLink())throw new Error('Worktree unavailable');const parent=path.join(runtime.dir,'worktrees');const relative=path.relative(fs.realpathSync(parent),fs.realpathSync(tree.directory));if(relative.startsWith('..')||path.isAbsolute(relative))throw new Error('Invalid worktree');return tree;};
+  ipcMain.handle('worktree:list',()=>trees());
+  ipcMain.handle('worktree:open',async(_,id)=>{const tree=treeById(id);const error=await require('electron').shell.openPath(tree.directory);if(error)throw new Error(error);return {ok:true};});
+  ipcMain.handle('worktree:diff',async(_,id)=>{idle();const tree=treeById(id);const {ProjectTools}=require('./project-tools.cjs');const tools=new ProjectTools(()=>tree.directory,approve);const status=await tools.command('git',['status','--short','--','.',':(exclude).apollocode']);if(!status.ok)throw new Error(status.output);const diff=await tools.command('git',['diff',tree.base,'--','.',':(exclude).apollocode']);if(!diff.ok)throw new Error(diff.output);return {output:status.output+'\n'+diff.output};});
   ipcMain.handle('workflow:state',()=>runtime.workflows.state());
   ipcMain.handle('workflow:create',(_,input)=>runtime.workflows.create(input));
   ipcMain.handle('workflow:template',(_,input)=>runtime.workflows.saveTemplate(input));
@@ -39,6 +53,11 @@ function registerRuntime({app,ipcMain,dialog,getWindow,readConfig,saveConfig,ski
   ipcMain.handle('computer:revoke',()=>runtime.computer.revoke());
   const state=()=>({settings:runtime.settings(),skills:runtime.skills.list(),externalPath:runtime.skills.external,servers:runtime.servers().map(s=>({...s,connected:runtime.mcp.clients.has(s.id),tools:(runtime.mcp.clients.get(s.id)?.tools||[]).map(t=>({name:t.name,alias:t.alias}))})),usage:runtime.usage(),memory:runtime.memory(),providers:runtime.profiles().map(p=>({id:p.id,name:p.name,provider:p.provider,model:p.model}))});
   ipcMain.handle('runtime:state',state);
+  ipcMain.handle('runtime:history:sync',(_,chats)=>runtime.settings().historyRecall?runtime.journal.sync(chats):{count:runtime.journal.history.length});
+  ipcMain.handle('runtime:history:clear',()=>runtime.journal.clear());
+  ipcMain.handle('runtime:journal',()=>({historyCount:runtime.journal.history.length,tasks:runtime.journal.list(readConfig().projectRoot)}));
+  ipcMain.handle('runtime:skill:versions',(_,id)=>runtime.skills.versions(id));
+  ipcMain.handle('runtime:skill:restore',async(_,id,revision)=>{idle();if(!await approve('skill-restore',id+'\n'+revision))return {ok:false};return {ok:true,...runtime.skills.restore(id,revision)};});
   ipcMain.handle('runtime:settings',(_,input)=>runtime.saveSettings(input));
   ipcMain.handle('runtime:skill:save',(_,input)=>runtime.skills.save(input.name,input.description,input.body));
   ipcMain.handle('runtime:skill:read',(_,id)=>({body:runtime.skills.load(id)}));
@@ -54,6 +73,7 @@ function registerRuntime({app,ipcMain,dialog,getWindow,readConfig,saveConfig,ski
   ipcMain.handle('runtime:mcp:disconnect',(_,id)=>runtime.mcp.disconnect(id));
   ipcMain.handle('runtime:memory',(_,text)=>runtime.saveMemory(text));
   ipcMain.handle('runtime:cancel',()=>runtime.cancel());
+  ipcMain.handle('runtime:control',(_,action,requestId,text)=>runtime.control(action,requestId,text));
   ipcMain.handle('runtime:rollback',(_,id)=>{idle();return runtime.tools.rollback(id);});
   ipcMain.handle('runtime:provider',(_,id)=>{idle();const provider=runtime.profiles().find(p=>p.id===id);if(!provider)throw new Error('供应商不存在。');saveConfig({...readConfig(),provider:provider.provider,baseUrl:provider.baseUrl,apiKey:provider.apiKey,model:provider.model});return readConfig();});
   return runtime;

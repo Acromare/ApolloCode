@@ -1,7 +1,7 @@
 {
   "name": "apollo-code",
-  "version": "0.7.1",
-  "description": "Apollo Code desktop workspace",
+  "version": "0.7.2",
+  "description": "Bring-your-own-model desktop agent with built-in Skills and token optimization",
   "main": "desktop/main.cjs",
   "bin": {
     "apollo-code": "bin/apollo.cjs",
@@ -20,7 +20,7 @@
     "make": "npm run build && electron-builder --win nsis --x64",
     "make:signed": "npm run build && node scripts/build-release.cjs --signed",
     "make:portable": "npm run build && electron-builder --win portable --x64",
-    "test": "node --test test/connection.test.cjs test/runtime.test.cjs test/mcp.test.cjs test/workflows.test.cjs test/updates.test.cjs test/capabilities.test.cjs test/responses.test.cjs test/signing.test.cjs",
+    "test": "node --test test/connection.test.cjs test/runtime.test.cjs test/mcp.test.cjs test/workflows.test.cjs test/updates.test.cjs test/capabilities.test.cjs test/responses.test.cjs test/signing.test.cjs test/agent-journal.test.cjs test/advanced-runtime.test.cjs",
     "test:automation": "electron scripts/automation-smoke.cjs",
     "test:native": "node scripts/native-smoke.cjs",
     "test:ui": "electron scripts/ui-smoke.cjs",
@@ -29,7 +29,9 @@
     "test:visual": "electron scripts/visual-smoke.cjs",
     "test:live": "electron scripts/live-agent-smoke.cjs --live",
     "package:verify": "npm run build && npm pack --dry-run",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "test:layout": "electron scripts/layout-journal-smoke.cjs",
+    "test:advanced-ui": "electron scripts/advanced-ui-smoke.cjs"
   },
   "keywords": [],
   "author": "",
@@ -89,6 +91,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
+    "cron-parser": "^5.10.2",
     "diff": "^9.0.0",
     "electron-updater": "^6.8.9",
     "js-tiktoken": "^1.0.21",

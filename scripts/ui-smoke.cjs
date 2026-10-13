@@ -3,13 +3,15 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const {registerRuntime}=require('../desktop/runtime-ipc.cjs');
 const work=path.join(__dirname,'../work');fs.mkdirSync(work,{recursive:true});
 const temp=fs.mkdtempSync(path.join(work,'ui-test-'));app.setPath('userData',temp);
+let modelFetches=0,connectionTests=0,modelsFail=false;
 let window,runtime,config={provider:'openai',baseUrl:'https://example.invalid/v1',model:'old-model',apiKey:'test-key',projectRoot:temp};
 app.whenReady().then(async()=>{
   try{
     runtime=registerRuntime({app,ipcMain,dialog:{showMessageBox:async()=>({response:1})},getWindow:()=>window,readConfig:()=>config,saveConfig:next=>{config=next;},skillDir:path.join(temp,'skills')});
     ipcMain.handle('config:get',()=>config);ipcMain.handle('config:save',(_,next)=>{config=next;runtime.rememberProvider(next);return {ok:true};});
     ipcMain.handle('project:get',()=>({root:temp,selected:true}));
-    ipcMain.handle('connection:models',()=>({ok:true,models:['available-a','available-b']}));
+    ipcMain.handle('connection:models',()=>{modelFetches++;return modelsFail?{ok:false,error:'offline'}:{ok:true,models:['available-a','available-b']};});
+    ipcMain.handle('connection:test',()=>{connectionTests++;return {ok:true};});
     window=new BrowserWindow({show:false,width:1440,height:860,webPreferences:{preload:path.join(__dirname,'../desktop/preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false}});
     const errors=[];window.webContents.on('console-message',event=>{if(event.level>=3)errors.push(event.message);});
     await window.loadFile(path.join(__dirname,'../dist/index.html'));
@@ -43,10 +45,14 @@ app.whenReady().then(async()=>{
     assert.equal(await window.webContents.executeJavaScript("!!document.querySelector('.settings-dialog')"),false);
     await window.webContents.executeJavaScript("document.querySelector('.model-menu-dismiss').click()");await wait();
     await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.settings-tabs button')).find(b=>b.textContent.includes('供应商')).click()");await wait();
-    await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.management-page button')).find(b=>b.textContent.includes('连接供应商')).click()");await wait();
-    assert.ok(await window.webContents.executeJavaScript("!!document.querySelector('.settings-dialog input[list=provider-models]')"));
-    await window.webContents.executeJavaScript("(()=>{const matching=Array.from(document.querySelectorAll('.settings-dialog select')).find(s=>Array.from(s.options).some(o=>o.value==='xhigh'));matching.value='high';matching.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait();
-    await window.webContents.executeJavaScript("(()=>{const field=document.querySelector('.settings-dialog input[list=provider-models]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(field,'manual-model-id');field.dispatchEvent(new Event('input',{bubbles:true}));})()");await wait();
+    assert.ok(await window.webContents.executeJavaScript("!!document.querySelector('.provider-settings input[list=provider-models]')"));
+    await window.webContents.executeJavaScript("(()=>{const matching=Array.from(document.querySelectorAll('.provider-settings select')).find(s=>Array.from(s.options).some(o=>o.value==='xhigh'));matching.value='high';matching.dispatchEvent(new Event('change',{bubbles:true}));})()");await wait();
+    await window.webContents.executeJavaScript("(()=>{const field=document.querySelector('.provider-settings input[list=provider-models]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(field,'manual-model-id');field.dispatchEvent(new Event('input',{bubbles:true}));})()");await wait();
+    assert.equal(config.model,'available-a','Draft fields must not change the active connection');
+    await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.connection-actions button')).find(b=>b.textContent.includes('获取')).click()");await wait();
+    await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.connection-actions button')).find(b=>b.textContent.includes('测试')).click()");await wait();
+    assert.equal(connectionTests,1);assert.ok(await window.webContents.executeJavaScript("document.querySelector('.connection-status').textContent.includes('manual-model-id')"));
+    fs.writeFileSync(path.join(work,'providers-dark-900.png'),(await window.webContents.capturePage()).toPNG());
     await window.webContents.executeJavaScript("document.querySelector('.save').click()");await wait();assert.equal(config.model,'manual-model-id');
     assert.equal(config.reasoningEffort,'high');
     await window.webContents.executeJavaScript("document.querySelector('.settings-tabs button').click()");await wait();
@@ -62,8 +68,45 @@ app.whenReady().then(async()=>{
     await window.webContents.executeJavaScript("document.querySelector('.model-picker-button').click()");await wait();
     await window.webContents.executeJavaScript("document.querySelector('.model-menu-dismiss').click()");await wait();
     await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.settings-tabs button')).find(b=>b.textContent==='Models & providers').click()");await wait();
-    await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.management-page button')).find(b=>b.textContent.includes('Connect provider')).click()");await wait();
-    assert.equal(await window.webContents.executeJavaScript("document.querySelector('.settings-dialog h2').textContent"),'Models & providers');
+    assert.equal(await window.webContents.executeJavaScript("document.querySelector('.provider-settings h2').textContent"),'Models & providers');
+    assert.equal(await window.webContents.executeJavaScript("/[\\u4e00-\\u9fff]/.test(document.querySelector('.provider-settings').textContent)"),false,'All provider settings labels switch to English');
+    assert.equal(await window.webContents.executeJavaScript("!!document.querySelector('.settings-dialog')"),false,'Provider configuration is inline');
+    await window.webContents.executeJavaScript("document.querySelector('.theme-toggle').click()");await wait();await wait();
+    for(const [width,height] of [[1440,860],[900,600]]){
+      window.setSize(width,height);await wait();
+      assert.equal(await window.webContents.executeJavaScript("Array.from(document.querySelectorAll('.provider-settings input,.provider-settings select,.provider-settings button')).some(el=>{const r=el.getBoundingClientRect();return r.width>0&&(r.left<0||r.right>innerWidth)})"),false,'Inline provider fields fit viewport');
+      fs.writeFileSync(path.join(work,'providers-light-'+width+'.png'),(await window.webContents.capturePage()).toPNG());
+    }
+    const cachedFetches=modelFetches;
+    for(const page of ['Home','Chat']){
+      await clickNav(page);
+      await window.webContents.executeJavaScript("document.querySelector('.model-pill').click()");await wait();
+      assert.equal(await window.webContents.executeJavaScript("!!document.querySelector('.provider-settings,.settings-dialog')"),false,'Main chat only shows model choices');
+      assert.equal(await window.webContents.executeJavaScript("(()=>{const r=document.querySelector('.model-menu').getBoundingClientRect();return r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth})()"),false,'Model menu fits viewport');
+      await window.webContents.executeJavaScript("document.querySelector('.model-menu input').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");
+      assert.equal(await window.webContents.executeJavaScript("document.activeElement.getAttribute('role')"),'menuitemradio');
+      await window.webContents.executeJavaScript("document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))");await wait();
+      assert.equal(await window.webContents.executeJavaScript("document.activeElement.className"),'model-pill','Escape restores focus');
+    }
+    assert.equal(modelFetches,cachedFetches,'Fresh model cache avoids a request on every opening');
+    await window.webContents.executeJavaScript("document.querySelector('.model-pill').click()");await wait();
+    await window.webContents.executeJavaScript("(()=>{const field=document.querySelector('.model-menu input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(field,'custom-model');field.dispatchEvent(new Event('input',{bubbles:true}));})()");await wait();
+    await window.webContents.executeJavaScript("document.querySelector('.model-menu input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))");await wait();
+    assert.equal(config.model,'custom-model','Model ID can be entered directly');
+    await window.webContents.executeJavaScript("document.querySelector('.model-pill').click()");await wait();
+    fs.writeFileSync(path.join(work,'model-menu-light-900.png'),(await window.webContents.capturePage()).toPNG());
+    await window.webContents.executeJavaScript("document.querySelector('.model-menu-settings').click()");await wait();
+    assert.ok(await window.webContents.executeJavaScript("!!document.querySelector('.provider-settings')"),'Model footer opens provider settings');
+    await window.webContents.executeJavaScript("document.querySelector('.settings-tabs button').click()");await wait();
+    await window.webContents.executeJavaScript("document.querySelector('.model-picker-button').click()");await wait();
+    await window.webContents.executeJavaScript("document.querySelector('.model-menu-settings').click()");await wait();
+    assert.ok(await window.webContents.executeJavaScript("!!document.querySelector('.provider-settings')"),'Repeated navigation returns to providers');
+    modelsFail=true;
+    await window.webContents.executeJavaScript("Object.keys(localStorage).filter(k=>k.startsWith('apollo-models:')).forEach(k=>{const v=JSON.parse(localStorage.getItem(k));v.time=0;localStorage.setItem(k,JSON.stringify(v));})");
+    await clickNav('Home');
+    await window.webContents.executeJavaScript("document.querySelector('.model-picker-button').click()");await wait();
+    assert.ok(await window.webContents.executeJavaScript("document.querySelector('.model-menu').textContent.includes('Model list unavailable')"));
+    assert.ok(await window.webContents.executeJavaScript("document.querySelector('.model-menu').textContent.includes('available-b')"),'Cached models survive discovery errors');
     assert.equal(errors.length,0,'Renderer console errors: '+errors.join('\n'));
     console.log('PASS: skills enablement, MCP editor, settings controls, 1440/900 layouts, model discovery/save, Chinese/English navigation and persistent language');
     await runtime.close();window.destroy();app.exit(0);

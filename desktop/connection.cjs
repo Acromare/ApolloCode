@@ -14,10 +14,14 @@ function diagnostic(status, message, key = '') {
   detail = detail.slice(0, 1000);
   let hint = '请核对 API 地址、接口协议和模型 ID。';
   if (/upstream.*auth|上游.*认证/i.test(detail)) hint = '服务商的上游凭据认证失败。请联系该接口服务商检查渠道凭据与授权。';
+  else if (/upstream.*(?:http\/2|stream failed)/i.test(detail)) hint = '服务商返回了上游连接或流中断错误。请检查该服务的渠道状态与接口协议；这不等于本地 API Key 无效。';
   else if (/not supported|model.*not found|unknown model/i.test(detail)) hint = '当前账户或分组不支持这个模型。请获取模型列表，选择准确的模型 ID。';
   else if (status === 401 || status === 403) hint = '请检查 API Key、账户权限和分组授权。';
   else if (status === 429) hint = '请求触发了限流或额度限制，请检查服务商额度。';
-  return 'HTTP ' + status + ' · ' + hint + '\n' + detail;
+  return (status ? 'HTTP ' + status + ' · ' : '') + hint + '\n' + detail;
+}
+function streamDiagnostic(message,key='') {
+  return diagnostic(undefined,message,key);
 }
 async function request(config, suffix, body, fetcher = fetch) {
   const response = await fetcher(config.baseUrl + suffix, {method: body ? 'POST' : 'GET', headers: headers(config), ...(body ? {body: JSON.stringify(body)} : {}), signal: AbortSignal.timeout(30000), redirect: 'error'});
@@ -42,4 +46,4 @@ async function test(input, fetcher) {
   catch (error) { return {ok: false, error: error.message}; }
 }
 function protocol(config){if(config.provider==='anthropic')return 'anthropic';if(config.provider==='ollama')return 'chat';if(config.apiMode==='responses'||config.apiMode==='chat')return config.apiMode;return /^(?:gpt-[5-9](?:[.-]|$)|o[1-9](?:[.-]|$))/i.test(config.model||'')&&!/azure/i.test(config.baseUrl||'')?'responses':'chat';}
-module.exports = {normalize, diagnostic, models, test,headers,protocol};
+module.exports = {normalize, diagnostic, streamDiagnostic, models, test,headers,protocol};

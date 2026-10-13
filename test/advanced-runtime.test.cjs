@@ -1,0 +1,39 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+const {execFileSync}=require('node:child_process');
+const {Scheduler,nextTime}=require('../desktop/scheduler.cjs');
+const {invocation}=require('../desktop/terminal-backends.cjs');
+const {Runtime}=require('../desktop/runtime.cjs');
+const {AgentJournal}=require('../desktop/agent-journal.cjs');
+const {SkillStore}=require('../desktop/skills.cjs');
+function fake(t){let now=Date.parse('2026-10-13T01:00:00Z'),config={provider:'openai',baseUrl:'https://example.invalid',apiKey:'secret',model:'test',projectRoot:'/project'};const store={},calls=[];const runtime={read:(key,fallback)=>store[key]||fallback,write:(key,value)=>store[key]=structuredClone(value),getConfig:()=>config,approve:async()=>true,settings:()=>({}),chat:async(payload,settings)=>{calls.push({payload,settings});return {ok:true,content:'Verified result'};},cancel:()=>{}};const notices=[];const scheduler=new Scheduler(runtime,{now:()=>now,notify:e=>notices.push(e),autoStart:false});t.after(()=>scheduler.close());return {scheduler,runtime,store,calls,notices,advance:ms=>now+=ms,config};}
+test('scheduled run is durable, disabled by default, deduplicated and project/model bound',async t=>{
+  const f=fake(t),id=f.scheduler.save({name:'Inspect',prompt:'Read project status',kind:'interval',minutes:1,mode:'plan'});assert.equal(f.scheduler.state().jobs[0].enabled,false);f.advance(60000);await f.scheduler.tick();assert.equal(f.calls.length,0);
+  await f.scheduler.enable(id,true);f.advance(60000);await f.scheduler.tick();await f.scheduler.tick();assert.equal(f.calls.length,1);assert.equal(f.calls[0].settings.mode,'plan');assert.equal(f.scheduler.state().runs[0].status,'done');assert.equal(f.notices[0].type,'schedule');
+  f.config.model='other';f.advance(60000);await f.scheduler.tick();assert.equal(f.calls.length,1);assert.equal(f.scheduler.state().jobs[0].enabled,false);assert.equal(f.scheduler.state().runs[0].status,'profile-changed');
+});
+test('scheduler skips missed slots, respects mutual exclusion, and never replays interrupted runs',async t=>{
+  const f=fake(t),id=f.scheduler.save({name:'Once',prompt:'Inspect only',kind:'once',at:'2026-10-13T01:01:00Z'});await f.scheduler.enable(id,true);f.advance(60000);f.runtime.running={};await f.scheduler.tick();assert.equal(f.calls.length,0);f.advance(180000);f.runtime.running=null;await f.scheduler.tick();assert.equal(f.calls.length,0);assert.equal(f.scheduler.state().runs[0].status,'missed');
+  f.store['schedule-runs.json']=[{id:'interrupted',status:'running'}];const restored=new Scheduler(f.runtime,{autoStart:false});assert.equal(restored.state().runs[0].status,'interrupted');await restored.tick();assert.equal(f.calls.length,0);restored.close();
+});
+test('cron handles timezone and scheduler rechecks config after user approval',async t=>{
+  assert.equal(nextTime({kind:'cron',cron:'0 9 * * 1-5',timezone:'Asia/Shanghai'},Date.parse('2026-10-13T01:00:00Z')),Date.parse('2026-10-14T01:00:00Z'));
+  assert.throws(()=>nextTime({kind:'cron',cron:'wrong'},Date.now()));const f=fake(t),id=f.scheduler.save({name:'x',prompt:'Inspect',kind:'interval',minutes:1});f.runtime.approve=async()=>{f.config.apiKey='changed';return true;};await assert.rejects(f.scheduler.enable(id,true),/changed during approval/);assert.equal(f.scheduler.state().jobs[0].enabled,false);
+});
+test('terminal invocation keeps commands as argv and enforces SSH host verification',()=>{
+  const command='echo "hello"; printf "$PATH"';const docker=invocation({kind:'docker',container:'test-box',directory:'/workspace'},command);assert.equal(docker.args.at(-1),command);assert.throws(()=>invocation({kind:'docker',container:'--privileged'},command));assert.throws(()=>invocation({kind:'ssh',host:'-oProxyCommand=bad'},command));
+  const ssh=invocation({kind:'ssh',host:'example.invalid',user:'user',directory:"/tmp/a'b"},command);assert.ok(ssh.args.includes('StrictHostKeyChecking=yes'));assert.ok(ssh.args.includes('BatchMode=yes'));assert.match(ssh.args.at(-1),/cd -- '\/tmp\/a'\\''b'/);assert.equal(ssh.args.at(-2),'user@example.invalid');
+});
+test('FTS5 handles Chinese substrings, literal syntax and project isolation; clear removes matches',t=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'apollo-fts-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));const journal=new AgentJournal(dir,()=>[]);journal.sync([{id:'a',title:'主题',project:dir,updated:1,messages:[{role:'user',content:'新的日月同辉毛玻璃主题'}]},{id:'b',title:'elsewhere',project:path.join(dir,'other'),messages:[{role:'user',content:'日月同辉'}]}]);const result=journal.search('日月同辉',dir);assert.equal(result.engine,'sqlite-fts5-trigram');assert.equal(result.results.length,1);assert.equal(result.results[0].chatId,'a');assert.equal(journal.search('玻璃',dir).engine,'literal-short-query');assert.equal(journal.search('" OR *',dir).results.length,0);journal.clear();assert.equal(journal.search('日月同辉',dir).results.length,0);
+});
+test('restoring skill creates a revision and preserves the current body for undo',t=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'apollo-skill-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));const skills=new SkillStore(path.join(dir,'builtin'),path.join(dir,'skills')),first=skills.save('sample-skill','First','Original');skills.save('sample-skill','Second','Revised');const restored=skills.restore(first.id,first.revision);assert.equal(skills.load(first.id),'Original');assert.notEqual(restored.revision,first.revision);assert.ok(skills.versions(first.id).some(v=>v.body==='Revised'));assert.throws(()=>skills.restore(first.id,'../x'));
+});
+test('writable child agents edit isolated real Git worktrees without modifying parent files',async t=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'apollo-worktree-')),root=path.join(dir,'project');fs.mkdirSync(root);let runtime;t.after(async()=>{await runtime?.close();fs.rmSync(dir,{recursive:true,force:true});});const git=args=>execFileSync('git',args,{cwd:root,windowsHide:true,encoding:'utf8'});git(['init','--quiet']);git(['config','user.email','test@example.invalid']);git(['config','user.name','Test']);fs.writeFileSync(path.join(root,'sample.txt'),'original\n');git(['add','sample.txt']);git(['commit','--quiet','-m','baseline']);
+  const turns=new Map(),approvals=[];runtime=new Runtime({dataDir:path.join(dir,'state'),skillDir:path.join(dir,'skills'),getConfig:()=>({provider:'openai',baseUrl:'https://example.invalid/v1',apiKey:'test-key',model:'test',projectRoot:root}),approve:async(type)=>{approvals.push(type);return true;},emit:()=>{},fetcher:async(_,options)=>{
+    const body=JSON.parse(options.body),system=body.messages[0].content;assert.ok(!body.tools.some(t=>['delegate_tasks','git_push','github_pr','run_terminal','create_personal_file'].includes(t.function.name)));const count=(turns.get(system)||0)+1;turns.set(system,count);const delta=count===1?{tool_calls:[{index:0,id:'patch',function:{name:'apply_patch',arguments:JSON.stringify({patch:'*** Begin Patch\n*** Update File: sample.txt\n@@\n-original\n+child edit\n*** End Patch'})}}]}:{content:'Verified edits'};return new Response('data: '+JSON.stringify({choices:[{delta}]})+'\n\ndata: [DONE]\n\n',{headers:{'Content-Type':'text/event-stream'}});
+  }});
+  const results=await runtime.delegate(['Edit one','Edit two'],new AbortController().signal,runtime.settings(),true);assert.equal(results.length,2);assert.ok(results.every(r=>!r.error));assert.notEqual(results[0].worktree.directory,results[1].worktree.directory);assert.equal(fs.readFileSync(path.join(root,'sample.txt'),'utf8'),'original\n');for(const result of results)assert.equal(fs.readFileSync(path.join(result.worktree.directory,'sample.txt'),'utf8').replace(/\r\n/g,'\n'),'child edit\n');assert.equal(approvals.filter(t=>t==='worktree-create').length,2);
+});

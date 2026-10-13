@@ -29,3 +29,12 @@ test('reasoning effort is sent only when explicitly chosen on Responses',async()
   await modelTurn({...config,apiMode:'chat',reasoningEffort:'high'},'',[{role:'user',content:'hi'}],[],64,null,()=>{},async(_url,options)=>{body=JSON.parse(options.body);return new Response(JSON.stringify({choices:[{message:{content:'OK'}}]}),{headers:{'Content-Type':'application/json'}});});
   assert.equal('reasoning' in body,false);assert.deepEqual(body.messages,[{role:'user',content:'hi'}]);
 });
+test('upstream stream failures explain provider-side response and redact secrets in both protocols',async()=>{
+  for(const apiMode of ['chat','responses']){
+    const error={message:'Upstream HTTP/2 stream failed '+config.apiKey};
+    const frame=apiMode==='chat'?{error}:{type:'response.failed',response:{error}};
+    await assert.rejects(modelTurn({...config,apiMode},'',[{role:'user',content:'hi'}],[],64,null,()=>{},async()=>new Response('data: '+JSON.stringify(frame)+'\n\n',{headers:{'content-type':'text/event-stream'}})),err=>{
+      assert.match(err.message,/服务商返回了上游/);assert.match(err.message,/Upstream HTTP\/2/);assert.ok(!err.message.includes(config.apiKey));return true;
+    });
+  }
+});

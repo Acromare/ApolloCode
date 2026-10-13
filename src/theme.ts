@@ -1,12 +1,12 @@
 import {useRef,useState} from 'react';
 import {flushSync} from 'react-dom';
 
-export type Theme='dark'|'light';
+export type Theme='dark'|'light'|'eclipse';
 const key='apollo-code-theme';
 export function savedTheme():Theme {
-  try{return localStorage.getItem(key)==='light'?'light':'dark';}catch{return 'dark';}
+  try{const saved=localStorage.getItem(key);return saved==='light'||saved==='eclipse'?saved:'dark';}catch{return 'dark';}
 }
-function apply(theme:Theme){document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme;}
+function apply(theme:Theme){document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme==='light'?'light':'dark';}
 apply(savedTheme());
 
 export function useTheme(){
@@ -15,7 +15,7 @@ export function useTheme(){
   async function toggle(button:HTMLButtonElement){
     if(locked.current)return;
     locked.current=true;setSwitching(true);
-    const next:Theme=theme==='dark'?'light':'dark';
+    const next:Theme=theme==='dark'?'light':theme==='light'?'eclipse':'dark';
     const commit=()=>{apply(next);setTheme(next);try{localStorage.setItem(key,next);}catch{/* Theme remains usable when storage is unavailable. */}};
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;

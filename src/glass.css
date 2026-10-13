@@ -1,0 +1,96 @@
+/* Final surface layer. Original day/night artwork remains unchanged. */
+:root{--glass:rgba(24,27,36,.50);--glass-soft:rgba(28,31,42,.32);--glass-border:rgba(226,224,248,.15);--glass-highlight:rgba(255,255,255,.07);--glass-shadow:rgba(0,0,0,.15);--glass-side:rgba(14,16,23,.68)}
+:root[data-theme=light]{--glass:rgba(255,253,250,.56);--glass-soft:rgba(255,253,250,.36);--glass-border:rgba(94,74,105,.16);--glass-highlight:rgba(255,255,255,.50);--glass-shadow:rgba(68,51,79,.07);--glass-side:rgba(244,241,237,.68)}
+:root[data-theme=eclipse]{--bg:#11151e;--sidebar:#e7ded3;--surface:#20232e;--surface-alt:#2b2e3a;--surface-soft:#262935;--text:#f3ece4;--muted:#c4bbc9;--faint:#9b95a7;--border:#47404d;--accent:#c09beb;--accent-bg:#a781d524;--accent-strong:#8b5dc2;--success:#a1d6b5;--success-bg:#21372d;--danger:#f498ac;--focus:#c5a2ef;--overlay:#05070db3;--shadow:#00000036;--home-title:#f4ddc3;--glass:rgba(240,231,220,.91);--glass-soft:rgba(240,231,220,.84);--glass-border:rgba(255,244,225,.48);--glass-highlight:rgba(255,255,255,.58);--glass-shadow:rgba(5,7,16,.26);--glass-side:rgba(233,224,213,.93)}
+.workspace{background:radial-gradient(ellipse at 8% 0%,color-mix(in srgb,var(--accent) 7%,transparent),transparent 55%),var(--bg)}
+:root[data-theme=eclipse]{--glass:rgba(39,34,49,.40);--glass-soft:rgba(47,39,57,.30);--glass-highlight:rgba(255,246,232,.10);--glass-border:rgba(244,226,255,.23);--glass-shadow:rgba(5,7,16,.12);--glass-side:rgba(233,224,213,.64)}
+[data-theme=eclipse] .shell{background:linear-gradient(90deg,#efdfca77,transparent 25%),url('../assets/eclipse-background.webp') center/cover,var(--bg)}
+.sidebar{background:linear-gradient(155deg,var(--glass-highlight),transparent 35%),var(--glass-side);backdrop-filter:blur(18px);border-right:1px solid var(--glass-border);box-shadow:2px 0 24px var(--glass-shadow)}
+.sidebar .new-chat-button{border:1px solid var(--glass-border);border-left:2px solid var(--accent);border-radius:12px;box-shadow:inset 0 1px 0 var(--glass-highlight)}
+.sidebar nav button,.sidebar-recents button{border-radius:10px;transition:background 160ms,color 160ms}
+.sidebar nav button{min-height:44px;height:44px}
+.sidebar-recents button{min-height:44px}
+[data-theme=eclipse] .sidebar{--text:#302a38;--muted:#5c5365;--accent:#724796;--accent-bg:#9c65cc22;--border:#65566d29;--surface-alt:#cfc4d142;--glass-highlight:#fff8ed77}
+[data-theme=eclipse] .sidebar .brand{font-family:Georgia,serif}
+[data-theme=eclipse] .sidebar .brand-icon{filter:none}
+.top-actions button,.top-actions .model-picker-button{border-radius:12px;background:var(--glass-soft);border:1px solid var(--glass-border);backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 var(--glass-highlight);min-height:40px}
+.top-actions .theme-toggle{width:40px;border-radius:50%}
+[data-theme=eclipse] .top-actions button{color:#e9dbf3}
+[data-theme=eclipse] .top-actions .model-picker-button{color:#f3ece4}
+.welcome{background:transparent}
+.home-art{background-size:cover}
+[data-theme=eclipse] .home-art{background-size:100% 100%}
+[data-theme=eclipse] .home-intro{padding-top:clamp(265px,43vh,420px);padding-right:0}
+[data-theme=eclipse] .home-intro h1{font-size:clamp(38px,4.3vw,64px);text-shadow:0 2px 18px #0009}
+.nyx-title{color:#ded3e4}
+[data-theme=eclipse] .home-intro .home-motto{color:#e7d7c6;letter-spacing:3px;margin-top:18px}
+[data-theme=eclipse] .home-intro .home-prompt{color:#e4dce4;margin-top:14px}
+[data-theme=eclipse] .welcome-entry{margin-top:26px;width:min(880px,100%)}
+.composer,.welcome .composer{background:linear-gradient(150deg,var(--glass-highlight),transparent 28%),var(--glass);border:1px solid var(--glass-border);border-radius:26px;padding:18px 20px 12px;box-shadow:inset 0 1px 0 var(--glass-highlight),0 8px 24px var(--glass-shadow);backdrop-filter:blur(20px) saturate(115%);transition:border-color 180ms,box-shadow 180ms}
+.composer:focus-within{border-color:color-mix(in srgb,var(--accent) 60%,var(--glass-border));box-shadow:inset 0 1px 0 var(--glass-highlight),0 0 0 3px color-mix(in srgb,var(--accent) 10%,transparent),0 8px 24px var(--glass-shadow)}
+.composer textarea,.welcome .composer textarea{color:var(--text);font:15px/1.7 -apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;min-height:30px}
+.composer textarea::placeholder,.welcome .composer textarea::placeholder{color:var(--muted)}
+.composer-drop-hint{font-size:11px;opacity:.85}
+.sidebar-scroll{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--muted) 25%,transparent) transparent}
+[data-theme=eclipse] .composer{background:linear-gradient(115deg,#fff3df0c,#dab6fa05 55%,transparent),var(--glass)}
+.composer-toolbar{padding-top:12px;gap:10px}
+.composer-toolbar-left,.composer-toolbar-right{gap:8px;flex-wrap:wrap}
+.composer-toolbar-right{justify-content:flex-end}
+.composer .permission-picker,.composer .model-pill,.composer .effort-picker{min-height:36px;border-radius:12px;border:1px solid transparent;background:transparent;color:var(--muted)}
+.composer .model-pill{display:flex;width:auto;max-width:215px;padding:6px 10px;background:color-mix(in srgb,var(--accent) 8%,transparent);border-color:var(--glass-border)}
+.composer .model-pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.composer .effort-picker{display:flex;align-items:center;gap:5px;width:auto;padding:4px 6px}
+.composer .effort-picker select{position:static;inset:auto;opacity:1;width:auto;height:auto;color:inherit;font-size:12px;background:transparent;border:0;padding:3px;max-width:110px;cursor:pointer}
+.composer .effort-picker option{background:var(--surface);color:var(--text)}
+[data-theme=eclipse] .composer .permission-agent{color:#dbc6ec}
+[data-theme=eclipse] .composer .permission-agent svg:first-child{color:#d3b0ef}
+.composer .permission-picker:hover,.composer .effort-picker:hover,.composer .model-pill:hover{background:var(--accent-bg)}
+.composer .icon-button{border-radius:12px;min-width:40px;min-height:40px}
+.composer .send,.welcome .composer .send{background:linear-gradient(145deg,#b77de0,#8152b5);color:#fff;border:1px solid #ffffff38;width:44px;height:44px;min-width:44px;box-shadow:inset 0 1px 1px #ffffff4d,0 4px 12px #8553b82e;transition:transform 160ms,filter 160ms,opacity 160ms}
+.composer .send:enabled:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.composer .send:enabled:active{transform:scale(.95)}
+.composer .send:disabled{opacity:.42;box-shadow:none}
+.entry.compact .composer{border-radius:24px}
+.run-controls{display:flex;align-items:center;padding:3px;gap:3px;border:1px solid var(--glass-border);border-radius:16px;background:color-mix(in srgb,var(--surface-alt) 32%,transparent)}
+.composer .run-controls button{width:38px;height:38px;min-width:38px;border-radius:12px;background:transparent;color:var(--muted);border:0;display:grid;place-items:center;transition:background 160ms,color 160ms}
+.run-controls svg{width:16px;height:16px;stroke-width:1.8}
+.composer .run-controls button:hover{background:var(--accent-bg);color:var(--accent)}
+.composer .run-controls .stop-run:hover{color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,transparent)}
+.composer .run-controls[data-state=paused]{border-color:var(--accent)}
+.run-status{display:flex;align-items:center;gap:8px;padding:10px 14px 0;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.run-status small{font-size:11px;color:var(--faint);margin-left:auto}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.run-status.running .status-dot{animation:glass-pulse 2s ease-in-out infinite}
+.run-status.paused .status-dot{background:var(--muted)}
+.quick-actions{gap:14px;margin-top:20px}
+.quick-actions button{background:linear-gradient(140deg,var(--glass-highlight),transparent 70%),var(--glass-soft);border:1px solid var(--glass-border);border-radius:18px;min-height:76px;padding:14px;backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 var(--glass-highlight),0 6px 20px var(--glass-shadow);transition:transform 160ms,background 160ms,border-color 160ms}
+.quick-actions button:hover{transform:translateY(-2px)}
+.quick-actions strong{font-size:16px}
+.quick-actions small{font-size:11px}
+[data-theme=eclipse] .composer,[data-theme=eclipse] .quick-actions{--text:#f4ece8;--muted:#d5c9da;--faint:#c1b4cc;--border:#ecd8fa38;--accent:#d5aff1;--accent-bg:#c497ef20;--surface-alt:#393041;--danger:#ffb0bd}
+[data-theme=eclipse] .welcome .composer button,[data-theme=eclipse] .composer button,[data-theme=eclipse] .composer textarea{color:var(--text)}
+[data-theme=eclipse] .composer .send{color:#fff}
+[data-theme=eclipse] .composer-meta{color:#dfd5e3}
+[data-theme=eclipse] .composer-meta button{color:#ead4ff}
+.conversation>.entry{padding-bottom:20px}
+.conversation .messages{scrollbar-width:thin;scrollbar-color:var(--border) transparent;overscroll-behavior:contain}
+.message.user{border-radius:20px 20px 6px 20px;box-shadow:inset 0 1px 0 var(--glass-highlight);background:color-mix(in srgb,var(--surface-alt) 88%,transparent)}
+.work-details>summary,.work-inline{border-radius:12px;min-height:32px;transition:background 160ms}
+.work-details>summary:hover{background:var(--accent-bg)}
+.work-details ol{border-left-color:color-mix(in srgb,var(--accent) 25%,transparent)}
+.schedule-jobs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:20px}
+.schedule-card{padding:18px;border:1px solid var(--border);border-radius:18px;background:color-mix(in srgb,var(--surface) 88%,transparent)}
+.schedule-heading{display:flex;align-items:center;gap:10px}
+.schedule-heading>svg{width:18px;color:var(--accent)}
+.schedule-heading label{margin-left:auto;font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted)}
+.schedule-card p{white-space:pre-wrap;font-size:13px;line-height:1.7}
+.schedule-card small{color:var(--muted);overflow-wrap:anywhere;font-size:11px;line-height:1.7}
+.schedule-result{margin:10px 0;padding:12px 16px;border:1px solid var(--border);border-radius:12px}
+.schedule-result summary{cursor:pointer;font-size:13px;line-height:1.6}
+.schedule-result pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.7}
+button:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+@keyframes glass-pulse{50%{opacity:.35}}
+@media(max-height:720px){[data-theme=eclipse] .home-intro{padding-top:220px}.home-intro h1{font-size:48px}.welcome-entry{margin-top:28px}.welcome{padding-bottom:24px}}
+@media(max-width:1100px){.composer-toolbar-right{flex:1}.composer .workspace-pill{display:none}.composer .model-pill{max-width:170px}.composer{padding:15px 16px 10px}.quick-actions{gap:10px}.quick-actions button{gap:8px;padding:10px}}
+@media(max-width:800px){.composer-toolbar{align-items:flex-start;flex-wrap:wrap}.composer-toolbar-left{flex:0 0 auto}.composer-toolbar-right{margin-left:auto}.quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))}[data-theme=eclipse] .home-intro{padding-top:260px}.home-intro h1{font-size:38px}}
+@media(prefers-reduced-motion:reduce){.run-status.running .status-dot{animation:none}.quick-actions button,.composer,.composer .send,.sidebar nav button{transition:none}.quick-actions button:hover,.composer .send:hover{transform:none}}

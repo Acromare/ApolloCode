@@ -29,7 +29,7 @@ async function modelTurn(config,system,messages,tools,maxOutput,signal,emit,fetc
   const event=frame=>{
     const data=frame.split('\n').filter(l=>l.startsWith('data:')).map(l=>l.slice(5).trim()).join('\n');if(!data||data==='[DONE]')return;
     const value=JSON.parse(data);
-    if(value.error)throw new Error(value.error.message||'流式接口错误');
+    if(value.error)throw new Error(connection.streamDiagnostic(value.error.message||'流式接口错误',config.apiKey));
     if(anthropic){
       if(value.type==='message_start')usage={...usage,...value.message?.usage};
       if(value.type==='message_delta')usage={...usage,...value.usage};

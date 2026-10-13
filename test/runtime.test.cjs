@@ -12,6 +12,31 @@ function fixture(t,fetcher,approve=async()=>true){
   return {runtime,project,dir};
 }
 const sse=(delta,usage)=>new Response('data: '+JSON.stringify({choices:[{delta}]})+'\n\ndata: '+JSON.stringify({choices:[],usage})+'\n\ndata: [DONE]\n\n',{headers:{'Content-Type':'text/event-stream'}});
+test('pause waits at a safe boundary and steering follows every tool result without replay',async t=>{
+  let release,started,paused;const ready=new Promise(r=>started=r),pauseReady=new Promise(r=>paused=r),first=new Promise(r=>release=r);let turns=0;
+  const {runtime,project}=fixture(t,async(_,options)=>{
+    const body=JSON.parse(options.body);
+    if(++turns===1){started();await first;return sse({tool_calls:[{index:0,id:'a',function:{name:'read_file',arguments:'{"path":"one.txt"}'}},{index:1,id:'b',function:{name:'read_file',arguments:'{"path":"two.txt"}'}}]},{});}
+    const messages=body.messages;assert.deepEqual(messages.slice(-3).map(m=>m.role),['tool','tool','user']);assert.equal(messages.at(-1).content,'Focus on the second file.');return sse({content:'Verified.'},{});
+  });
+  fs.writeFileSync(path.join(project,'one.txt'),'first');fs.writeFileSync(path.join(project,'two.txt'),'second');await runtime.saveSettings({mode:'plan'});
+  const events=[];runtime.emit=e=>{events.push(e);if(e.type==='control'&&e.status==='paused')paused();};
+  const pending=runtime.chat({requestId:'controlled',messages:[{role:'user',content:'Read both.'}]});await ready;
+  assert.throws(()=>runtime.control('pause','stale'),/no longer active/);runtime.control('pause','controlled');release();await pauseReady;
+  assert.equal(events.filter(e=>e.type==='tool').length,0);assert.equal(turns,1);
+  runtime.control('steer','controlled','Focus on the second file.');runtime.control('resume','controlled');assert.equal((await pending).ok,true);
+  assert.equal(events.filter(e=>e.type==='tool'&&e.status==='running').length,2);assert.equal(turns,2);
+});
+test('stop unblocks paused task and pending steering cannot leak to another task',async t=>{
+  let paused;const wait=new Promise(r=>paused=r);let called=0;const {runtime}=fixture(t,async()=>{if(++called===1)runtime.control('pause','p');return sse({content:'Done.'},{});});
+  runtime.emit=e=>{if(e.type==='control'&&e.status==='paused')paused();};
+  const pending=runtime.chat({requestId:'p',messages:[{role:'user',content:'hello'}]});await wait;runtime.control('steer','p','queued');runtime.cancel();assert.equal((await pending).ok,false);
+  assert.throws(()=>runtime.control('resume','p'),/no longer active/);assert.equal((await runtime.chat({messages:[{role:'user',content:'New task'}]})).content,'Done.');
+});
+test('instruction arriving during a final model response starts a new round',async t=>{
+  let runtime,turns=0;({runtime}=fixture(t,async(_,options)=>{if(++turns===1){runtime.control('steer','s','Also explain why.');return sse({content:'Initial response.'},{});}assert.equal(JSON.parse(options.body).messages.at(-1).content,'Also explain why.');return sse({content:'Final explanation.'},{});}));
+  assert.equal((await runtime.chat({requestId:'s',messages:[{role:'user',content:'answer'}]})).content,'Final explanation.');assert.equal(turns,2);
+});
 test('tool loop reads real project data, streams final answer and records provider usage',async t=>{
   const requests=[];const {runtime,project}=fixture(t,async(_,options)=>{
     const body=JSON.parse(options.body);requests.push(body);

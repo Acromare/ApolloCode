@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Globe,ChevronRight,LoaderCircle,Check,AlertCircle,Terminal,FileText,ShieldCheck} from 'lucide-react';
+import {Globe,ChevronRight,Pause, LoaderCircle,Check,AlertCircle,Terminal,FileText,ShieldCheck} from 'lucide-react';
 import type {WorkTrace,RuntimeEvent} from './runtime-types';
 import {useLanguage} from './i18n';
 import {useWorkDisplay} from './work-display';
@@ -26,11 +26,12 @@ export function WorkDetails({trace,openBrowser}:{trace:WorkTrace;openBrowser:()=
   const firstText=trace.events.find(e=>e.type==='first_text')?.durationMs;
   const hasDetails=toolEvents.length>0||trace.events.some(e=>e.type==='commentary'||e.type==='reasoning_summary'||e.type==='approval');
   if(trace.status==='done'&&display==='hidden')return null;
-  if(trace.status!=='running'&&!hasDetails)return null;
-  const inline=trace.status==='running'&&!hasDetails;
-  const summary=trace.status==='running'?labels.working+' · '+(waiting?labels.waiting:active?title(active,language==='en-US'):labels.processing):trace.status==='done'?labels.done:labels.ended;
-  if(inline)return <div className="work-inline" role="status"><span className="work-summary-icon" aria-hidden="true"><LoaderCircle className="spin"/></span><span>{summary}</span><span className="work-duration">{seconds}{labels.seconds}</span></div>;
-  return <details className="work-details" open={expanded}><summary onClick={event=>{event.preventDefault();if(display!=='expanded')setExpanded(value=>!value);}}><span className="work-summary-icon" aria-hidden="true">{trace.status==='running'?<LoaderCircle className={waiting?'':'spin'}/>:trace.status==='done'?<Check/>:<AlertCircle/>}</span><span className="work-summary-text">{summary}</span><span className="work-duration">{seconds}{labels.seconds}{firstText!==undefined?' · '+(language==='zh-CN'?'首字 ':'First text ')+(firstText/1000).toFixed(1)+'s':''}{tools.length?' · '+tools.length+' '+labels.ops:''}</span><ChevronRight className="work-chevron" aria-hidden="true"/></summary>
+  const live=['running','pausing','paused'].includes(trace.status);
+  if(!live&&!hasDetails)return null;
+  const inline=live&&!hasDetails;
+  const summary=trace.status==='paused'?(language==='zh-CN'?'已暂停':'Paused'):trace.status==='pausing'?(language==='zh-CN'?'正在暂停 · 等待当前操作完成':'Pausing · finishing current operation'):trace.status==='running'?labels.working+' · '+(waiting?labels.waiting:active?title(active,language==='en-US'):labels.processing):trace.status==='done'?labels.done:labels.ended;
+  if(inline)return <div className="work-inline" role="status"><span className="work-summary-icon" aria-hidden="true">{trace.status==='paused'?<Pause/>:<LoaderCircle className="spin"/>}</span><span>{summary}</span><span className="work-duration">{seconds}{labels.seconds}</span></div>;
+  return <details className="work-details" open={expanded}><summary onClick={event=>{event.preventDefault();if(display!=='expanded')setExpanded(value=>!value);}}><span className="work-summary-icon" aria-hidden="true">{trace.status==='paused'?<Pause/>:trace.status==='running'||trace.status==='pausing'?<LoaderCircle className={waiting?'':'spin'}/>:trace.status==='done'?<Check/>:<AlertCircle/>}</span><span className="work-summary-text">{summary}</span><span className="work-duration">{seconds}{labels.seconds}{firstText!==undefined?' · '+(language==='zh-CN'?'首字 ':'First text ')+(firstText/1000).toFixed(1)+'s':''}{tools.length?' · '+tools.length+' '+labels.ops:''}</span><ChevronRight className="work-chevron" aria-hidden="true"/></summary>
     <ol>{trace.events.filter(e=>e.type==='tool'&&e.status==='running'||e.type==='commentary'||e.type==='reasoning_summary'||e.type==='approval'&&e.status==='waiting').map((e,i)=>{
       if(e.type==='commentary'||e.type==='reasoning_summary')return <li className="work-commentary" key={i}><small>{e.type==='reasoning_summary'?labels.reasoning:labels.commentary}</small><p>{e.text}</p></li>;
       const result=e.type==='tool'?trace.events.find(v=>v.type==='tool'&&v.callId===e.callId&&v.status!=='running'):trace.events.slice(trace.events.indexOf(e)+1).find(v=>v.type==='approval'&&v.name===e.name&&v.status!=='waiting');

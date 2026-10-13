@@ -16,7 +16,7 @@ app.whenReady().then(async()=>{
     const capture=async name=>{await settled();fs.writeFileSync(path.join(work,name+'.png'),(await window.webContents.capturePage()).toPNG());};
     await window.loadFile(path.join(__dirname,'../dist/index.html'));await settled();
     assert.equal(await js('document.documentElement.dataset.theme'),'dark');
-    assert.equal(await js("getComputedStyle(document.querySelector('.composer')).backgroundColor"),'rgb(21, 24, 32)','Home editor follows dark theme');
+    assert.equal(await js("getComputedStyle(document.querySelector('.composer')).backgroundColor"),'rgba(24, 27, 36, 0.5)','Home editor follows dark theme');
     assert.ok(await js("document.querySelector('.brand-icon').src.includes('apollo-mark') && document.querySelector('.brand-icon').naturalWidth === 512"),'New logo loads');
     assert.notEqual(await js("getComputedStyle(document.querySelector('.brand-icon')).filter"),'none','Dark theme has light logo');
     assert.ok(await js("document.querySelector('.model-pill').getBoundingClientRect().width > 80"),'Model selector shows full name');
@@ -28,7 +28,7 @@ app.whenReady().then(async()=>{
     assert.ok(await js("document.documentElement.getAnimations({subtree:true}).length>0"),'Theme reveal animation must be active');
     fs.writeFileSync(path.join(work,'theme-transition.png'),(await window.webContents.capturePage()).toPNG());
     await capture('theme-light-1440');
-    assert.equal(await js("getComputedStyle(document.querySelector('.composer')).backgroundColor"),'rgb(255, 255, 255)','Home editor follows light theme');
+    assert.equal(await js("getComputedStyle(document.querySelector('.composer')).backgroundColor"),'rgba(255, 253, 250, 0.56)','Home editor follows light theme');
     assert.equal(await js("getComputedStyle(document.querySelector('.brand-icon')).filter"),'none','Light theme preserves black logo');
     const activeTheme=()=>js('document.documentElement.dataset.theme');
     const contrast=await js(`(()=>{const rgb=s=>s.match(/[0-9.]+/g).slice(0,3).map(Number);const lum=s=>rgb(s).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4}).reduce((n,v,i)=>n+v*[.2126,.7152,.0722][i],0);const el=document.querySelector('.sidebar');const cs=getComputedStyle(el);const a=lum(cs.color),b=lum(cs.backgroundColor);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05)})()`);
@@ -39,7 +39,7 @@ app.whenReady().then(async()=>{
       assert.equal(await js("document.querySelector('.home-intro').getBoundingClientRect().bottom>document.querySelector('.composer').getBoundingClientRect().top"),false);
       const outside=await js("Array.from(document.querySelectorAll('.quick-actions button,.top-actions button,.composer-toolbar button')).some(e=>{const r=e.getBoundingClientRect();return r.left<0||r.right>innerWidth})");assert.equal(outside,false);
       await capture('theme-light-'+width);
-      await js("document.querySelector('.theme-toggle').click()");await settled();await capture('theme-dark-'+width);
+      await js("document.querySelector('.theme-toggle').click()");await settled();assert.equal(await activeTheme(),'eclipse');await capture('theme-eclipse-'+width);await js("document.querySelector('.theme-toggle').click()");await settled();await capture('theme-dark-'+width);
       await js("document.querySelector('.theme-toggle').click()");await settled();
     }
     window.setSize(1440,960);
@@ -53,7 +53,7 @@ app.whenReady().then(async()=>{
     window.webContents.debugger.attach('1.3');
     await window.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
     await js("document.querySelector('.theme-toggle').click()");await delay(50);
-    assert.equal(await activeTheme(),'dark');assert.equal(await js('document.documentElement.getAnimations({subtree:true}).length'),0);
+    assert.equal(await activeTheme(),'eclipse');assert.equal(await js('document.documentElement.getAnimations({subtree:true}).length'),0);
     assert.equal(runtime.usage().requests,inputTokens,'Theme changes must not call a model');
     assert.equal(errors.length,0,errors.join('\n'));
     console.log('PASS: animated theme reveal, dark/light artwork, 1440/900/600 layouts, all management pages, persistent preference, reduced motion and zero model requests');

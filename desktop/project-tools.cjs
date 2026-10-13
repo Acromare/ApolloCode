@@ -20,7 +20,7 @@ function normalizePatch(text,tools){
     if(operation==='Add'){if(before!==null)throw new Error('新增文件已存在：'+relative);if(content.some(l=>!l.startsWith('+')))throw new Error('新增文件内容必须以 + 开头。');after=content.map(l=>l.slice(1)).join('\n')+'\n';}
     else if(operation==='Delete'){if(before===null)throw new Error('删除目标不存在。');if(content.length)throw new Error('删除文件头不应带内容。');after='';}
     else {
-      if(before===null)throw new Error('更新目标不存在：'+relative);let result=before.split('\n');let cursor=0;
+      if(before===null)throw new Error('更新目标不存在：'+relative);const eol=before.includes('\r\n')&&!/(^|[^\r])\n/.test(before)?'\r\n':'\n';let result=(eol==='\r\n'?before.replace(/\r\n/g,'\n'):before).split('\n');let cursor=0;
       while(cursor<content.length){
         if(!content[cursor].startsWith('@@'))throw new Error('更新补丁需要 @@ 区块。');cursor++;
         const chunk=[];while(cursor<content.length&&!content[cursor].startsWith('@@')){if(content[cursor]==='*** End of File'){cursor++;break;}chunk.push(content[cursor++]);}
@@ -30,7 +30,7 @@ function normalizePatch(text,tools){
         const matches=[];for(let i=0;i<=result.length-original.length;i++)if(original.every((line,j)=>result[i+j]===line))matches.push(i);
         if(matches.length!==1)throw new Error('补丁上下文不匹配或不唯一：'+relative);result.splice(matches[0],original.length,...replacement);
       }
-      after=result.join('\n');
+      after=result.join(eol);
     }
     const diff=createPatch(relative,before||'',after);patches.push(operation==='Delete'?diff.replace('+++ '+relative,'+++ /dev/null'):diff);
   }
