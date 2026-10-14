@@ -9,6 +9,7 @@ if(process.argv.includes('--self-test')&&qaIndex>=0){const qaRoot=path.resolve(p
 
 let mainWindow;
 let runtime;
+let hermes;
 const {registerRuntime}=require('./runtime-ipc.cjs');
 const configPath = path.join(app.getPath('userData'), 'config.json');
 const defaults = {provider: 'openai', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', apiKey: '', apiMode:'auto', reasoningEffort:'auto', projectRoot: '', trust: 'confirm'};
@@ -20,20 +21,22 @@ function project() { const root = readConfig().projectRoot; if (!root || !fs.exi
 function safePath(root, target) { const resolved = path.resolve(root, target || '.'); if (resolved !== root && !resolved.startsWith(root + path.sep)) throw new Error('操作被安全策略拦截：路径不在当前项目内。'); return resolved; }
 function audit(root, action, detail) { const dir = path.join(root, '.apollocode'); fs.mkdirSync(dir, {recursive: true}); fs.appendFileSync(path.join(dir, 'audit.log'), JSON.stringify({time: new Date().toISOString(), action, detail: redact(detail)}) + '\n', 'utf8'); }
 function run(file, args, cwd, timeout = 120000) { return new Promise(resolve => execFile(file, args, {cwd, timeout, windowsHide: true, maxBuffer: 4 * 1024 * 1024}, (error, stdout, stderr) => resolve({ok: !error, code: error?.code ?? 0, output: redact((stdout + '\n' + stderr).slice(0, 60000))}))); }
-function cli(prompt, model) { return new Promise(resolve => { const args = ['-p', prompt, '--output-format', 'json']; if (model) args.push('--model', model); const cliPath = path.join(process.env.APPDATA || '', 'npm', 'node_modules', '@anthropic-ai', 'claude-code', 'bin', 'claude.exe'); execFile(fs.existsSync(cliPath) ? cliPath : 'claude', args, {timeout: 120000, maxBuffer: 4 * 1024 * 1024, windowsHide: true}, (error, stdout, stderr) => { if (error) return resolve({ok: false, error: 'Claude Code 启动失败：' + (String(stderr).trim() || error.message)}); try { const data = JSON.parse(stdout); resolve(data.is_error ? {ok: false, error: data.result || 'Claude Code 请求失败'} : {ok: true, content: data.result || ''}); } catch { resolve({ok: true, content: stdout.trim()}); } }); }); }
 function createWindow() { mainWindow = new BrowserWindow({icon: path.join(__dirname, 'icon.png'), width: 1440, height: 860, minWidth: 900, minHeight: 600, backgroundColor: '#090e18', frame: false, show: false, autoHideMenuBar: true, webPreferences: {preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true}}); mainWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html')); mainWindow.once('ready-to-show', () => mainWindow.show()); mainWindow.on('closed', () => { mainWindow = undefined; }); }
 
 app.whenReady().then(async() => {
   if(process.argv.includes('--self-test')){if(qaIndex<0)throw new Error('Self-test requires --qa-root.');await require('./self-test.cjs').run(app,safeStorage);app.exit(0);return;}
-  runtime=registerRuntime({app,ipcMain,dialog,getWindow:()=>mainWindow,readConfig,saveConfig,vault});
+  const network=require('./model-network.cjs').modelFetch(net.fetch.bind(net));
+  runtime=registerRuntime({app,ipcMain,dialog,getWindow:()=>mainWindow,readConfig,saveConfig,vault,fetcher:network});
+  hermes=require('./hermes-ipc.cjs').registerHermes({app,ipcMain,getWindow:()=>mainWindow,readConfig,runtime});
   require('./updates.cjs').registerUpdates({app,ipcMain,dialog,getWindow:()=>mainWindow,isBusy:()=>Boolean(runtime.running||runtime.workflowBusy),fetchRelease:()=>require('./release-api.cjs').fetchLatestRelease({electronFetch:net.fetch.bind(net)}),getLanguage:async()=>mainWindow&&!mainWindow.isDestroyed()?mainWindow.webContents.executeJavaScript("localStorage.getItem('apollo-language')"): 'zh-CN',openExternal:url=>shell.openExternal(url)});
   ipcMain.handle('app:info',()=>({project:readConfig().projectRoot,version:app.getVersion()}));
   ipcMain.handle('window:close', () => mainWindow?.close());
   ipcMain.handle('window:minimize', () => mainWindow?.minimize());
   ipcMain.handle('window:maximize', () => mainWindow?.isMaximized() ? mainWindow.unmaximize() : mainWindow?.maximize());
   ipcMain.handle('config:get', () => readConfig());
-  ipcMain.handle('connection:models', (_, config) => connection.models(config));
-  ipcMain.handle('connection:test', (_, config) => connection.test(config));
+  ipcMain.handle('attachment:store', (_,file) => require('./attachments.cjs').storeUpload(path.join(app.getPath('userData'),'attachments'),file));
+  ipcMain.handle('connection:models', (_, config) => connection.models(config,(url,init)=>network(url,{...init,apolloTransport:runtime.settings().networkTransport})));
+  ipcMain.handle('connection:test', (_, config) => connection.test({...config,requestSettings:runtime.settings()},network));
   ipcMain.handle('config:save', (_, input) => { if(runtime.running||runtime.workflowBusy)throw new Error('请先停止当前任务。'); const previous = readConfig(); const next = {...previous, provider: ['openai', 'anthropic', 'claude', 'ollama'].includes(input?.provider) ? input.provider : 'openai', baseUrl: String(input?.baseUrl || '').trim(), model: String(input?.model || '').trim(), apiKey: String(input?.apiKey || '').trim(), apiMode:['auto','chat','responses'].includes(input?.apiMode)?input.apiMode:'auto', reasoningEffort:['auto','low','medium','high','xhigh'].includes(input?.reasoningEffort)?input.reasoningEffort:'auto', trust: ['confirm', 'session', 'yolo'].includes(input?.trust) ? input.trust : previous.trust}; if (next.provider !== 'claude') next.baseUrl = connection.normalize(next).baseUrl; saveConfig(next); runtime.rememberProvider(next); return {ok: true}; });
   ipcMain.handle('project:get', () => { const root = readConfig().projectRoot; return {root, selected: Boolean(root && fs.existsSync(root))}; });
   ipcMain.handle('project:choose', async () => { if(runtime.running||runtime.workflowBusy)throw new Error('请先停止当前任务。'); const result = await dialog.showOpenDialog(mainWindow, {properties: ['openDirectory', 'createDirectory']}); if (result.canceled || !result.filePaths[0]) return {ok: false}; const config = readConfig(); config.projectRoot = path.resolve(result.filePaths[0]); saveConfig(config); runtime.tools.audit('project-selected',config.projectRoot); return {ok: true, root: config.projectRoot}; });
@@ -47,14 +50,18 @@ app.whenReady().then(async() => {
   ipcMain.handle('chat:send',async(_,payload)=>{
     if(runtime.workflowBusy)return {ok:false,error:'工作流正在运行'};
     const config=readConfig();
+    if(runtime.settings().engine==='hermes')return hermes.chat(payload,config,runtime.settings());
+    payload=require('./attachments.cjs').attachmentContext(payload,config.projectRoot);
     if(config.provider==='claude'){
       const economy=require('./economy.cjs');
       const limited=economy.context(payload.messages||[],runtime.settings().contextTokens-runtime.settings().maxOutputTokens);
-      return cli([payload.instruction||'',...limited.messages.map(m=>m.role+': '+economy.redact(m.content,[config.apiKey]))].join('\n\n'),config.model);
+      return require('./claude-runtime.cjs').claudeChat(runtime,payload,[payload.instruction||'',...limited.messages.map(m=>m.role+': '+economy.redact(m.content,[config.apiKey]))].join('\n\n'),config);
     }
     return runtime.chat(payload);
   });
   createWindow();
+  // Start the local tool backend while the user composes, without a model request.
+  if(runtime.settings().engine==='hermes'&&readConfig().provider!=='claude')void hermes.backend.start().catch(()=>{});
   app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
 }).catch(error=>{if(process.argv.includes('--self-test')){fs.writeFileSync(path.join(app.getPath('userData'),'report.json'),JSON.stringify({ok:false,error:redact(error.message)}));}else dialog.showErrorBox('Apollo Code 启动失败',redact(error.message));app.exit(1);});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

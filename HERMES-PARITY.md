@@ -1,5 +1,7 @@
 # Hermes 功能对齐核查
 
+> 本文保留 0.7.2 的历史核查；0.8.2 已接入独立 Hermes 后端，当前状态见 [STATUS.md](STATUS.md)。
+
 日期：2026-10-13。参考 [Hermes README](https://github.com/NousResearch/hermes-agent/blob/main/README.md)，快照在 `work/agent-references/`。这是功能核查，不是同模型对照测评。本次功能用于 0.7.2 发布；此前本地验收目录的版本为 0.7.1。
 
 | 能力 | Apollo 当前实现 | 差距与验证边界 |

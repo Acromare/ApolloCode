@@ -69,7 +69,7 @@ test('parallel children really overlap, expose only read tools and count all mod
     const body=JSON.parse(options.body);assert.ok(!body.tools.some(t=>['run_shell','apply_patch','delegate_tasks','remember_memory'].includes(t.function.name)));
     inflight++;maximum=Math.max(maximum,inflight);await new Promise(r=>setTimeout(r,150));inflight--;return response({content:'Verified investigation.'});
   });
-  const result=await runtime.delegate(['inspect A','inspect B','inspect C'],new AbortController().signal,{...runtime.settings(),contextTokens:16384,mode:'agent'});
+  const result=await runtime.delegate(['inspect A','inspect B','inspect C'],new AbortController().signal,{...runtime.settings(),contextTokens:16384,mode:'agent',maxConcurrentRequests:3});
   assert.equal(maximum,3);assert.equal(result.length,3);assert.ok(result.every(r=>r.readOnly&&r.result));assert.equal(runtime.stats.requests,3);assert.equal(runtime.children.size,0);
 });
 test('semantic summary retains historical constraints with latest request and records extra usage',async t=>{
@@ -85,7 +85,7 @@ test('semantic summary retains historical constraints with latest request and re
 test('automatic memory proposes only after a response and never persists without approval',async t=>{
   let count=0;const {runtime}=fixture(t,async()=>response({content:++count===1?'Understood.':'User prefers concise Chinese answers.'}),async()=>false);
   await runtime.saveSettings({autoMemory:true});assert.ok((await runtime.chat({messages:[{role:'user',content:'Always answer concisely in Chinese.'}]})).ok);
-  assert.equal(runtime.memory().text,'');assert.equal(count,2);
+  assert.equal(runtime.memory().text,'');await Promise.all([...runtime.background].map(job=>job.promise));assert.equal(count,2);assert.match(runtime.read('memory-proposal.json',{}).text,/Chinese/);
   runtime.approve=async()=>true;assert.ok((await runtime.remember('User prefers concise Chinese answers.')).ok);assert.match(runtime.memory().text,/Chinese/);
 });
 test('screenshots reach the next model turn as images after all tool results, not huge text logs',async t=>{

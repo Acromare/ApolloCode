@@ -28,14 +28,14 @@ test('connection test uses selected model with a small generation', async () => 
     const body = JSON.parse(options.body);
     assert.equal(body.model, config.model);
     assert.equal(body.max_completion_tokens, 64);
-    return {ok:true, text:async () => JSON.stringify({choices:[{message:{content:'OK'}}]})};
+    return new Response(JSON.stringify({choices:[{message:{content:'OK'},finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});
   });
   assert.equal(result.ok, true);
 });
 test('connection test exercises explicit Responses reasoning effort',async()=>{
   const result=await connection.test({...config,model:'gpt-6.1-sol',reasoningEffort:'high'},async(_url,options)=>{
-    const body=JSON.parse(options.body);assert.deepEqual(body.reasoning,{effort:'high'});assert.equal(body.max_output_tokens,256);
-    return {ok:true,text:async()=>JSON.stringify({output:[{type:'message',content:[{type:'output_text',text:'OK'}]}]})};
+    const body=JSON.parse(options.body);assert.deepEqual(body.reasoning,{effort:'high'});assert.equal(body.max_output_tokens,4096);assert.equal(body.stream,false);
+    return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'OK'}]}]}),{headers:{'content-type':'application/json'}});
   });
   assert.equal(result.ok,true);
 });

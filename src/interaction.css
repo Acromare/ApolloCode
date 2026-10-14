@@ -1,0 +1,54 @@
+/* Compact controls share feedback and focus states across all three themes. */
+:root{--control-duration:120ms;--popover-duration:140ms;--control-ease:cubic-bezier(.2,.75,.25,1)}
+.composer .composer-choice{display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;width:auto;height:40px;min-height:40px;max-width:260px;padding:0 10px;font-size:12px;white-space:nowrap;flex:none}
+.composer-choice>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.composer .composer-choice svg{width:16px;height:16px;stroke-width:1.8}
+.composer .composer-choice .choice-chevron{width:13px;height:13px;transition:transform var(--control-duration) var(--control-ease)}
+.composer-choice[aria-expanded=true] .choice-chevron{transform:rotate(180deg)}
+.composer .composer-choice,.composer .model-pill,.top-actions button,.composer .icon-button{transition:background-color var(--control-duration),border-color var(--control-duration),color var(--control-duration);transform:none}
+.composer .composer-choice[aria-expanded=true],.composer .model-pill[aria-expanded=true],.top-actions button[aria-expanded=true]{background:var(--accent-bg);border-color:color-mix(in srgb,var(--accent) 35%,var(--glass-border));color:var(--text)}
+.composer .composer-choice:enabled:active,.composer .model-pill:active,.composer .icon-button:enabled:active,.top-actions button:enabled:active{background:color-mix(in srgb,var(--accent) 18%,var(--surface));transform:none}
+.composer .composer-choice:disabled{opacity:.45}
+.composer button:focus-visible,.top-actions button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.model-menu-dismiss{z-index:29}
+.model-menu-anchor,.choice-popover-anchor{position:fixed;z-index:30;isolation:isolate;max-width:calc(100vw - 24px)}
+.model-menu-anchor .model-menu,.choice-popover{position:relative;border:1px solid var(--glass-border);border-radius:16px;padding:6px;background:color-mix(in srgb,var(--surface) 92%,transparent);color:var(--text);box-shadow:inset 0 1px 0 var(--glass-highlight),0 12px 32px var(--shadow);backdrop-filter:blur(18px);animation:popover-enter var(--popover-duration) var(--control-ease) both;transform-origin:top center}
+.model-menu-anchor .model-menu[data-above=true],.choice-popover[data-above=true]{transform-origin:bottom center}
+.choice-popover{width:min(280px,calc(100vw - 24px));overflow:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;overscroll-behavior:contain}
+.choice-popover button,.model-menu-options button{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;min-height:44px;padding:10px 12px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--text);text-align:left;font-size:13px;transition:background-color var(--control-duration),border-color var(--control-duration)}
+.choice-option-text{display:grid;gap:4px;min-width:0}
+.choice-option-text small{color:var(--muted);font-size:11px;line-height:1.5}
+.choice-popover .choice-check{width:16px;height:16px;flex:none;color:var(--accent);opacity:0}
+.choice-popover button[aria-checked=true] .choice-check{opacity:1}
+.choice-popover button[aria-checked=true],.model-menu-options button[aria-checked=true]{background:var(--accent-bg);border-color:color-mix(in srgb,var(--accent) 22%,transparent)}
+.choice-popover button:hover,.model-menu-options button:enabled:hover{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.choice-popover button:focus-visible,.model-menu button:focus-visible{outline:2px solid var(--focus);outline-offset:-3px}
+.model-menu-search{margin:0 4px;padding:4px 8px 8px}
+.model-menu-search input:focus-visible{outline:0;box-shadow:0 2px 0 var(--focus)}
+.model-menu-options{padding:6px 0;scrollbar-width:thin;scrollbar-color:var(--border) transparent;overscroll-behavior:contain}
+.model-menu-options button+button,.choice-popover button+button{margin-top:3px}
+.model-menu .model-menu-settings{border-radius:0 0 10px 10px;padding-left:12px}
+@keyframes popover-enter{from{opacity:0;transform:translateY(3px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+::view-transition-group(root){animation-duration:190ms}
+.conversation .messages{scroll-behavior:auto;overflow-anchor:none}
+
+/* The scroller fills its parent; the gutters constrain the content, not its box. */
+.workspace-page{width:100%;max-width:none;padding:104px 28px 40px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.workspace-page>*{display:block;width:100%;max-width:960px;margin-inline:auto}
+.workspace-page .workspace-tools{min-width:0}
+.workspace-tools>div strong{min-width:0;white-space:normal;overflow-wrap:anywhere}
+.workspace-tools>div:first-child{flex-wrap:wrap}
+.workspace-tools>div:first-child>strong{flex:1 1 200px}
+.workspace-tools>div>button{flex:none}
+.workspace-page .task-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));align-items:start}
+.workspace-page small{letter-spacing:normal;line-height:1.6;overflow-wrap:anywhere}
+.workspace-page>small{letter-spacing:.08em}
+.workspace-page .task-status{white-space:nowrap}
+.workspace-page .task-journal>header p{max-width:640px}
+@media(max-width:800px){.workspace-page{padding:96px 20px 28px}.composer .composer-choice{max-width:190px}.composer .permission-picker>span{max-width:150px}.composer-toolbar-left,.composer-toolbar-right{gap:4px}}
+@media(prefers-reduced-motion:reduce){.choice-popover,.model-menu-anchor .model-menu{animation:none}.composer .composer-choice,.composer .model-pill,.choice-chevron,.top-actions button,.choice-popover button,.model-menu-options button{transition:none}}
+.attachment-chip{max-width:min(100%,340px);gap:7px}
+.attachment-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.attachment-chip small{flex-shrink:0;color:var(--muted);font-size:11px}
+.attachment-chip svg{flex-shrink:0}
+.sidebar-recents button .chat-running{width:7px;height:7px;background:var(--accent);border-radius:50%;flex:0 0 7px}

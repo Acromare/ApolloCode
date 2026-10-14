@@ -25,11 +25,11 @@ class TerminalBackends{
   constructor(runtime){this.runtime=runtime;}
   state(){return this.runtime.read('execution.json',{kind:'local',directory:'/workspace'});}
   async save(input){if(this.runtime.running||this.runtime.workflowBusy)throw new Error('Stop the active task first');const config=validate(input);if(config.kind!=='local'&&!await this.runtime.approve('remote-terminal',JSON.stringify(config,null,2)))return {ok:false};this.runtime.write('execution.json',config);return {ok:true,config};}
-  async run(args,signal){
-    const config=this.state();if(config.kind==='local')return this.runtime.tools.shell(args,signal);
+  async run(args,signal,options={}){
+    const config=this.state();if(config.kind==='local')return this.runtime.tools.shell(args,signal,options);
     const spec=invocation(config,args.command);const timeoutMs=Number(args.timeoutMs||120000);if(!Number.isInteger(timeoutMs)||timeoutMs<1000||timeoutMs>300000)throw new Error('Timeout must be 1–300 seconds');
     if(!await this.runtime.approve('remote-terminal',JSON.stringify(config,null,2)+'\n'+redact(args.command,[this.runtime.getConfig().apiKey])))throw new Error('Terminal execution rejected');
-    if(signal?.aborted)throw new Error('已中断');const result=await this.runtime.tools.command(spec.file,spec.args,signal,{timeoutMs,auditCommand:config.kind+': '+redact(args.command,[this.runtime.getConfig().apiKey])});
+    if(signal?.aborted)throw new Error('已中断');const result=await this.runtime.tools.command(spec.file,spec.args,signal,{...options,timeoutMs,backend:config.kind,auditCommand:config.kind+': '+redact(args.command,[this.runtime.getConfig().apiKey])});
     return {...result,backend:config.kind,directory:config.directory,note:'Terminal files are in this backend; read_file/apply_patch address the local project only.'};
   }
 }

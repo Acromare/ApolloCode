@@ -1,5 +1,7 @@
 # Apollo Code
 
+当前版本 **0.8.2**：独立 Hermes 后端、多对话并行、多文件附件和流式输出。安装包随附 Python 与依赖，保留配置和聊天记录。详见 [更新说明](RELEASE-0.8.2.md) 和 [发布页](https://github.com/Acromare/ApolloCode/releases/tag/v0.8.2)。
+
 **接入你自己的模型，把想法变成能执行的任务。**
 
 Apollo Code 是面向编码与自动化的桌面 Agent 工作台。你选择模型服务、配置接口和凭证；Apollo 提供内置 Skills、项目工具和上下文管理，让模型围绕真实文件完成工作，也让 Token 消耗更容易控制。

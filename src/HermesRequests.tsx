@@ -1,0 +1,36 @@
+import React,{useEffect,useRef,useState} from 'react';
+import {useLanguage} from './i18n';
+import {HermesFields,initialValues} from './HermesFields';
+import type {HermesCatalog,HermesQuestion} from './hermes-types';
+import './hermes.css';
+export function HermesRequests(){
+ const [questions,setQuestions]=useState<HermesQuestion[]>([]),[catalog,setCatalog]=useState<HermesCatalog|null>(null);
+ useEffect(()=>{void window.apollo.hermes.catalog().then(setCatalog).catch(()=>{});const a=window.apollo.hermes.onRequest(question=>{if(question.method!=='tour')setQuestions(old=>old.some(q=>q.id===question.id)?old:[...old,question]);}),b=window.apollo.hermes.onRequestCancelled(id=>setQuestions(old=>old.filter(q=>q.id!==id)));return()=>{a();b();};},[]);
+ const question=questions[0];if(!question||!catalog)return null;
+ return <HermesRequest key={question.id} question={question} catalog={catalog} close={()=>setQuestions(old=>old.filter(q=>q.id!==question.id))}/>;
+}
+function HermesRequest({question,catalog,close}:{question:HermesQuestion;catalog:HermesCatalog;close:()=>void}){
+ const {language}=useLanguage(),zh=language==='zh-CN',dialog=useRef<HTMLDivElement>(null),previous=useRef<HTMLElement|null>(null);
+ const descriptor=catalog['x-server-requests'].find(r=>r.name===question.method),schema=descriptor?.result.schema||{type:'object',properties:{value:{type:'string'}},required:['value']};
+ const [values,setValues]=useState<Record<string,unknown>>(()=>({...initialValues(schema,catalog.components.schemas),...(question.method==='clarify'?{answers:question.params.answers||{}}:{}),...(question.method==='setup_choose'&&Array.isArray(question.params.preselected)?{picked:question.params.multi_select?question.params.preselected:question.params.preselected[0]}:{})})),[error,setError]=useState(''),[pending,setPending]=useState(false),[login,setLogin]=useState({identifier:'',password:''});
+ const p=question.params,approval=question.method==='approval',clarify=question.method==='clarify',setup=question.method==='setup_choose';
+ const sensitive=/secret|sudo|vault\./.test(question.method);
+ useEffect(()=>{previous.current=document.activeElement as HTMLElement;const target=approval?dialog.current?.querySelector<HTMLElement>('[data-deny]'):dialog.current?.querySelector<HTMLElement>('input,select,textarea,button');target?.focus();return()=>previous.current?.focus();},[]);
+ async function answer(result:Record<string,unknown>){setPending(true);setError('');try{await window.apollo.hermes.answer(question.id,result);close();}catch(e){setError((e as Error).message);}finally{setPending(false);}}
+ const prompts=(Array.isArray(p.questions)?p.questions:[]) as {qid:string;question:string;choices?:string[];multi_select?:boolean}[];
+ const choices=(Array.isArray(p.choices)?p.choices:['once','deny']).map(String).filter(v=>v==='deny'||v==='once'||v==='session'&&p.allow_session!==false||v==='always'&&p.allow_permanent===true);
+ const choiceLabels:Record<string,string>={once:zh?'仅本次允许':'Allow once',session:zh?'本会话允许':'Allow for session',always:zh?'始终允许':'Always allow',deny:zh?'拒绝':'Deny'};
+ const skip=()=>answer(approval?{choice:'deny'}:clarify?{answers:null}:setup?{picked:null}:{value:''});
+ return <div className='modal-cover' onKeyDown={e=>{if(e.key==='Escape'&&!pending){e.preventDefault();void skip();}if(e.key==='Tab'){const nodes=Array.from(dialog.current?.querySelectorAll<HTMLElement>('input,select,textarea,button')||[]).filter(el=>!el.hasAttribute('disabled'));if(!nodes.length)return;const first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}}}><div className='hermes-request-dialog' ref={dialog} role='dialog' aria-modal='true' aria-labelledby='hermes-request-title'>
+  <h2 id='hermes-request-title'>{approval?(zh?'操作需要批准':'Approval required'):clarify?(zh?'需要补充信息':'More information needed'):sensitive?(zh?'Hermes 需要凭据':'Hermes credential request'):(zh?'Hermes 交互请求':'Hermes request')}</h2>
+  {typeof p.chat_title==='string'&&p.chat_title&&<p className='hermes-hint'>{zh?'对话：':'Chat: '}{p.chat_title}</p>}
+  {typeof p.prompt==='string'&&<p>{p.prompt}</p>}{typeof p.question==='string'&&<p>{p.question}</p>}{typeof p.description==='string'&&<p>{p.description}</p>}{typeof p.command==='string'&&<pre>{p.command}</pre>}{typeof p.env_var==='string'&&<p>{p.env_var}</p>}
+  {error&&<p role='alert'>{error}</p>}
+  {typeof p.site==='string'&&<p>{p.site}</p>}{typeof p.origin==='string'&&<p>{p.origin}</p>}{typeof p.display_name==='string'&&<p>{p.display_name}</p>}
+  {approval?<div className='hermes-request-actions'>{choices.map(choice=><button data-deny={choice==='deny'?'true':undefined} key={choice} disabled={pending} onClick={()=>void answer({choice})}>{choiceLabels[choice]||choice}</button>)}</div>:<form onSubmit={e=>{e.preventDefault();void answer(question.method==='vault.save_login'?{value:JSON.stringify(login)}:values);}}>
+   {clarify?prompts.map(q=><label key={q.qid}>{q.question}{q.choices?<select multiple={q.multi_select} value={q.multi_select?String((values.answers as Record<string,string>|undefined)?.[q.qid]||'').split('\n'):String((values.answers as Record<string,string>|undefined)?.[q.qid]||'')} onChange={e=>setValues({...values,answers:{...(values.answers as Record<string,string>||{}),[q.qid]:q.multi_select?Array.from(e.target.selectedOptions).map(o=>o.value).join('\n'):e.target.value}})}><option value=''>{zh?'请选择':'Select'}</option>{q.choices.map(v=><option key={v}>{v}</option>)}</select>:<input value={String((values.answers as Record<string,string>|undefined)?.[q.qid]||'')} onChange={e=>setValues({...values,answers:{...(values.answers as Record<string,string>||{}),[q.qid]:e.target.value}})}/>}</label>):setup&&Array.isArray(p.options)?<label>{zh?'选择':'Choose'}<select multiple={Boolean(p.multi_select)} value={p.multi_select?(Array.isArray(values.picked)?values.picked.map(String):[]):String(values.picked||'')} onChange={e=>setValues({...values,picked:p.multi_select?Array.from(e.target.selectedOptions).map(o=>o.value):e.target.value})}><option value=''>{zh?'请选择':'Select'}</option>{(p.options as {id:string;label:string}[]).map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label>:setup?<label>{zh?'你的回答':'Your answer'}<textarea required value={String(values.picked||'')} onChange={e=>setValues({...values,picked:e.target.value})}/></label>:question.method==='vault.save_login'?null:<HermesFields schema={schema} schemas={catalog.components.schemas} values={values} setValues={setValues} zh={zh} masked={sensitive}/>}
+   {question.method==='vault.save_login'&&<><label>{zh?'用户名、邮箱或电话':'Username, email or phone'}<input required autoComplete='username' value={login.identifier} onChange={e=>setLogin({...login,identifier:e.target.value})}/></label><label>{zh?'密码':'Password'}<input required type='password' autoComplete='off' value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/></label></>}
+   <div className='hermes-request-actions'><button type='button' disabled={pending} onClick={()=>void skip()}>{zh?'跳过':'Skip'}</button><button type='submit' disabled={pending}>{zh?'提交':'Submit'}</button></div>
+  </form>}
+ </div></div>;
+}

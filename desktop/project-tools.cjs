@@ -4,6 +4,8 @@ const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
 const {parsePatch,applyPatch,createPatch}=require('diff');
 const {redact}=require('./economy.cjs');
+const {CommandOutput}=require('./command-output.cjs');
+const {StringDecoder}=require('node:string_decoder');
 const hash=text=>crypto.createHash('sha256').update(text).digest('hex');
 function contained(root,target){const rel=path.relative(root,target);return !rel.startsWith('..'+path.sep)&&rel!=='..'&&!path.isAbsolute(rel);}
 function normalizePatch(text,tools){
@@ -66,20 +68,25 @@ class ProjectTools {
       let command=executable,actual=argv,env={...process.env,...(file==='git'?{GIT_TERMINAL_PROMPT:'0',GCM_INTERACTIVE:'never'}:{})};
       if(npm){const candidates=[path.join(path.dirname(process.env.npm_execpath||''),'npm-cli.js'),path.join(process.env.APPDATA||'','npm','node_modules','npm','bin','npm-cli.js'),...(process.env.PATH||'').split(path.delimiter).map(dir=>path.join(dir,'node_modules','npm','bin','npm-cli.js'))];const cli=candidates.find(p=>fs.existsSync(p));if(!cli)return reject(new Error('未找到 npm-cli.js，请配置本机 Node.js/npm。')); actual=[cli,...args];env.ELECTRON_RUN_AS_NODE='1';}
       const child=spawn(command,actual,{cwd:root,env,windowsHide:true,shell:false,detached:process.platform!=='win32'});
-      let output='';const append=chunk=>{output=(output+chunk.toString()).slice(-80000);};child.stdout.on('data',append);child.stderr.on('data',append);
+      const secrets=options.secrets||this.outputSecrets||[],notify=options.onOutput||this.onOutput;
+      const started=Date.now(),displayCommand=redact(options.auditCommand||[file,...args].join(' '),secrets);
+      notify?.({type:'command_start',command:displayCommand,cwd:root,backend:options.backend||'local'});
+      const live=new CommandOutput(secrets,event=>notify?.({type:'tool_output',...event,durationMs:Date.now()-started}));
+      let output='';const decoders={stdout:new StringDecoder('utf8'),stderr:new StringDecoder('utf8')};
+      const append=(stream,chunk)=>{const text=decoders[stream].write(chunk);output=(output+text).slice(-80000);live.append(stream,text);};child.stdout.on('data',chunk=>append('stdout',chunk));child.stderr.on('data',chunk=>append('stderr',chunk));
       let timedOut=false;const stop=()=>{if(process.platform==='win32'){const killer=spawn('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});killer.on('error',()=>child.kill());}else{try{process.kill(-child.pid,'SIGTERM');}catch{child.kill();}}};signal?.addEventListener('abort',stop,{once:true});
       const timer=setTimeout(()=>{timedOut=true;stop();},options.timeoutMs||120000);
-      child.once('error',e=>{clearTimeout(timer);signal?.removeEventListener('abort',stop);reject(e);});
-      child.once('close',code=>{clearTimeout(timer);signal?.removeEventListener('abort',stop);resolve({ok:code===0&&!timedOut&&!signal?.aborted,code,timedOut,interrupted:Boolean(signal?.aborted),command:redact(options.auditCommand||[file,...args].join(' ')),output:redact(output)});});
+      child.once('error',e=>{clearTimeout(timer);live.flush();signal?.removeEventListener('abort',stop);reject(e);});
+      child.once('close',code=>{clearTimeout(timer);signal?.removeEventListener('abort',stop);for(const stream of ['stdout','stderr'])live.append(stream,decoders[stream].end());live.flush();notify?.({type:'command_end',code,timedOut,interrupted:Boolean(signal?.aborted),durationMs:Date.now()-started});resolve({ok:code===0&&!timedOut&&!signal?.aborted,code,timedOut,interrupted:Boolean(signal?.aborted),command:displayCommand,cwd:root,output:redact(output,secrets)});});
     });
   }
-  async shell(args,signal){
+  async shell(args,signal,options={}){
     const command=String(args.command||'');if(!command.trim()||command.length>30000)throw new Error('命令不能为空且最多 30000 字符。');
     const timeoutMs=Number(args.timeoutMs||120000);if(!Number.isInteger(timeoutMs)||timeoutMs<1000||timeoutMs>300000)throw new Error('命令超时范围为 1–300 秒。');
     const cwd=args.cwd||'.';this.resolve(cwd);
     if(!await this.approve('shell',this.root()+'\n'+cwd+'\n'+redact(command)))throw new Error('Shell 命令未获批准。');
-    if(process.platform==='win32')return this.command('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(command,'utf16le').toString('base64')],signal,{cwd,timeoutMs,auditCommand:command});
-    return this.command('/bin/sh',['-c',command],signal,{cwd,timeoutMs,auditCommand:command});
+    if(process.platform==='win32')return this.command('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(command,'utf16le').toString('base64')],signal,{...options,cwd,timeoutMs,auditCommand:command});
+    return this.command('/bin/sh',['-c',command],signal,{...options,cwd,timeoutMs,auditCommand:command});
   }
   async commit(args,signal){
     if(!Array.isArray(args.paths)||!args.paths.length||args.paths.length>100)throw new Error('提交需明确选择 1–100 个文件。');
@@ -112,10 +119,10 @@ class ProjectTools {
     if(!await this.approve('git-push',redact(remote.output.trim())+'\n'+branch))throw new Error('推送未获批准。');
     return this.command('git',['push','--set-upstream','origin',branch],signal);
   }
-  async tests(signal){
+  async tests(signal,options={}){
     const root=this.root();const pkg=path.join(root,'package.json');
-    if(fs.existsSync(pkg)&&JSON.parse(fs.readFileSync(pkg,'utf8')).scripts?.test)return this.command('npm',['test'],signal);
-    if(fs.existsSync(path.join(root,'go.mod')))return this.command('go',['test','./...'],signal);
+    if(fs.existsSync(pkg)&&JSON.parse(fs.readFileSync(pkg,'utf8')).scripts?.test)return this.command('npm',['test'],signal,options);
+    if(fs.existsSync(path.join(root,'go.mod')))return this.command('go',['test','./...'],signal,options);
     throw new Error('未找到 npm test 或 go test。');
   }
   async patch(text){

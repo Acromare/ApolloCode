@@ -1,5 +1,7 @@
 # Apollo Code
 
+Current release **0.8.2** adds the bundled Hermes backend, concurrent chats, multiple file attachments, and streaming responses. Python and dependencies are included; existing settings and chat history are preserved. See the [release](https://github.com/Acromare/ApolloCode/releases/tag/v0.8.2) and [capability status](STATUS.md).
+
 **Bring your own model. Build with reusable Skills and control over token usage.**
 
 Apollo Code is a desktop agent workspace for coding and automation. Connect your provider and credentials; Apollo supplies Skills, project tools, and context management. The application does not bundle model weights or a shared model account. Local models can be connected through an Ollama service you deploy separately.
@@ -18,7 +20,7 @@ Skills supply reusable methods, tools connect the model to actual files, and con
 
 ## Quick start
 
-1. Download the Windows x64 installer or portable EXE from [Releases](https://github.com/Acromare/ApolloCode/releases/latest).
+1. Download the Windows x64 installer from [Releases](https://github.com/Acromare/ApolloCode/releases/latest).
 2. Open **Settings → Models & providers**. Enter your API URL and key, choose a model, and test the connection.
 3. Choose a project directory and start with a verifiable task: “Explain this project's entry point without changing files.”
 4. Use Agent mode for approved edits and execution: “Find why this test fails, propose a fix, then apply it and run the relevant tests after approval.”

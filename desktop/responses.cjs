@@ -1,4 +1,5 @@
 const connection=require('./connection.cjs');
+const {RequestError,httpError,streamError}=require('./request-recovery.cjs');
 function inputItems(messages){
   const input=[];
   for(const m of messages){
@@ -12,29 +13,31 @@ function inputItems(messages){
   return input;
 }
 function output(value,config={}){
-  if(value?.error||value?.status==='failed')throw new Error(connection.streamDiagnostic(value.error?.message||'Responses 请求失败。',config.apiKey));
+  if(value?.error||value?.status==='failed')throw streamError(value.error?.message||'Responses 请求失败。',config);
+  if(value?.status==='incomplete')throw new RequestError(value.incomplete_details?.reason==='max_output_tokens'?'output_limit':'incomplete_response','Responses 返回未完成状态：'+(value.incomplete_details?.reason||'unknown'),{retryable:true});
   return {content:(value.output||[]).filter(item=>item.type==='message').flatMap(item=>(item.content||[]).filter(c=>c.type==='output_text').map(c=>c.text)).join('\n'),tools:(value.output||[]).filter(item=>item.type==='function_call').map(item=>({id:item.call_id,type:'function',function:{name:item.name,arguments:item.arguments||'{}'}})),usage:value.usage||{}};
 }
 async function responsesTurn(config,system,messages,tools,maxOutput,signal,emit,fetcher){
-  const body={model:config.model,...(system?{instructions:system}:{}),input:inputItems(messages),max_output_tokens:maxOutput,stream:true,store:false,...(config.reasoningEffort&&config.reasoningEffort!=='auto'?{reasoning:{effort:config.reasoningEffort}}:{}),...(tools.length?{tools:tools.map(t=>({type:'function',name:t.name,description:t.description,parameters:t.parameters,strict:false}))}:{})};
+  const body={model:config.model,...(system?{instructions:system}:{}),input:inputItems(messages),max_output_tokens:maxOutput,stream:connection.streaming(config),store:false,...(config.reasoningEffort&&config.reasoningEffort!=='auto'?{reasoning:{effort:config.reasoningEffort}}:{}),...(tools.length?{tools:tools.map(t=>({type:'function',name:t.name,description:t.description,parameters:t.parameters,strict:false}))}:{})};
   const response=await fetcher(connection.normalize(config).baseUrl+'/responses',{method:'POST',headers:connection.headers(config),body:JSON.stringify(body),signal,redirect:'error'});
-  if(!response.ok){let data;try{data=await response.json();}catch{}throw new Error(connection.diagnostic(response.status,data?.error?.message,config.apiKey));}
-  if(!String(response.headers.get('content-type')).includes('text/event-stream')){const result=output(await response.json(),config);if(result.content)emit({type:'delta',text:result.content});return result;}
+  if(!response.ok)throw await httpError(response,config);
+  if(!String(response.headers.get('content-type')).includes('text/event-stream')){const value=await response.json();if(value.status==='incomplete'){const partial=(value.output||[]).filter(i=>i.type==='message').flatMap(i=>(i.content||[]).filter(c=>c.type==='output_text').map(c=>c.text)).join('\n');if(partial)emit({type:'delta',text:partial});}const result=output(value,config);if(result.content)emit({type:'delta',text:result.content});return result;}
   const calls=new Map();let content='',usage={},finished=null,buffer='';const decoder=new TextDecoder(),reader=response.body.getReader();
   const event=frame=>{
     const raw=frame.split('\n').filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trim()).join('\n');if(!raw||raw==='[DONE]')return;
-    const value=JSON.parse(raw);if(value.type==='error'||value.type==='response.failed')throw new Error(connection.streamDiagnostic(value.message||value.error?.message||value.response?.error?.message||'Responses 流式请求失败。',config.apiKey));
+    const value=JSON.parse(raw);if(value.type==='error'||value.type==='response.failed')throw streamError(value.message||value.error?.message||value.response?.error?.message||'Responses 流式请求失败。',config);
     if(value.type==='response.output_text.delta'){content+=value.delta;emit({type:'delta',text:value.delta});}
     if(value.type==='response.reasoning_summary_text.delta'&&value.delta)emit({type:'reasoning_summary',text:value.delta});
     if(value.type==='response.output_item.added'&&value.item.type==='function_call')calls.set(value.output_index,{id:value.item.call_id,type:'function',function:{name:value.item.name,arguments:value.item.arguments||''}});
     if(value.type==='response.function_call_arguments.delta'){const call=calls.get(value.output_index);if(call)call.function.arguments+=value.delta;}
     if(value.type==='response.output_item.done'&&value.item.type==='function_call')calls.set(value.output_index,{id:value.item.call_id,type:'function',function:{name:value.item.name,arguments:value.item.arguments||'{}'}});
-    if(value.type==='response.completed'||value.type==='response.incomplete'){finished=output(value.response,config);usage=value.response.usage||{};}
+    if(value.type==='response.completed'||value.type==='response.incomplete'){finished=output({...value.response,...(value.type==='response.incomplete'?{status:'incomplete'}:{})},config);usage=value.response.usage||{};}
   };
   try{
-    while(true){const {done,value}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true}).replace(/\r/g,'');let boundary;while((boundary=buffer.indexOf('\n\n'))>=0){event(buffer.slice(0,boundary));buffer=buffer.slice(boundary+2);}}
-    buffer+=decoder.decode();if(buffer.trim())event(buffer);
-  }finally{reader.releaseLock();}
+    while(!finished){const {done,value}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true}).replace(/\r/g,'');if(buffer.length>4000000)throw new RequestError('invalid_stream','单个响应事件过大。');let boundary;while((boundary=buffer.indexOf('\n\n'))>=0){event(buffer.slice(0,boundary));buffer=buffer.slice(boundary+2);if(finished)break;}}
+    buffer+=decoder.decode();if(!finished&&buffer.trim())event(buffer);
+  }finally{try{Promise.resolve(reader.cancel()).catch(()=>{});}catch{}reader.releaseLock();}
+  if(!finished)throw new RequestError('incomplete_stream','Responses 流提前结束，未收到 response.completed。',{retryable:true});
   return {content:finished?.content||content,tools:finished?.tools||[...calls.values()],usage};
 }
 module.exports={responsesTurn,inputItems,output};

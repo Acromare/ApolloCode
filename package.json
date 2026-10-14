@@ -1,6 +1,6 @@
 {
   "name": "apollo-code",
-  "version": "0.7.2",
+  "version": "0.8.2",
   "description": "Bring-your-own-model desktop agent with built-in Skills and token optimization",
   "main": "desktop/main.cjs",
   "bin": {
@@ -20,7 +20,7 @@
     "make": "npm run build && electron-builder --win nsis --x64",
     "make:signed": "npm run build && node scripts/build-release.cjs --signed",
     "make:portable": "npm run build && electron-builder --win portable --x64",
-    "test": "node --test test/connection.test.cjs test/runtime.test.cjs test/mcp.test.cjs test/workflows.test.cjs test/updates.test.cjs test/capabilities.test.cjs test/responses.test.cjs test/signing.test.cjs test/agent-journal.test.cjs test/advanced-runtime.test.cjs",
+    "test": "node --test test/connection.test.cjs test/runtime.test.cjs test/mcp.test.cjs test/workflows.test.cjs test/updates.test.cjs test/capabilities.test.cjs test/responses.test.cjs test/signing.test.cjs test/agent-journal.test.cjs test/advanced-runtime.test.cjs test/reliability.test.cjs test/claude-runtime.test.cjs test/request-path.test.cjs test/hermes.test.cjs test/attachments.test.cjs",
     "test:automation": "electron scripts/automation-smoke.cjs",
     "test:native": "node scripts/native-smoke.cjs",
     "test:ui": "electron scripts/ui-smoke.cjs",
@@ -31,7 +31,11 @@
     "package:verify": "npm run build && npm pack --dry-run",
     "prepack": "npm run build",
     "test:layout": "electron scripts/layout-journal-smoke.cjs",
-    "test:advanced-ui": "electron scripts/advanced-ui-smoke.cjs"
+    "test:advanced-ui": "electron scripts/advanced-ui-smoke.cjs",
+    "test:interaction": "electron scripts/interaction-smoke.cjs",
+    "test:reliability-ui": "electron scripts/reliability-ui-smoke.cjs",
+    "test:hermes": "node scripts/hermes-acceptance.cjs",
+    "test:hermes-ui": "electron scripts/hermes-ui-smoke.cjs"
   },
   "keywords": [],
   "author": "",
@@ -56,7 +60,7 @@
     "appId": "com.apollocode.desktop",
     "productName": "Apollo Code",
     "directories": {
-      "output": "release"
+      "output": "release-0.8.2"
     },
     "files": [
       "desktop/**/*",
@@ -87,7 +91,35 @@
     },
     "portable": {
       "artifactName": "Apollo-Code-Portable-${version}-${arch}.${ext}"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "vendor/hermes-engine",
+        "to": "hermes-engine",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/node_modules/**",
+          "!**/.git/**",
+          "!**/.env",
+          "!**/web/dist/**"
+        ]
+      },
+      {
+        "from": "work/hermes-python-0.8.0",
+        "to": "hermes-python",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc"
+        ]
+      },
+      {
+        "from": "desktop/hermes-launch.py",
+        "to": "hermes-launch.py"
+      }
+    ]
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

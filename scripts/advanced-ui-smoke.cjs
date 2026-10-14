@@ -26,7 +26,7 @@ app.whenReady().then(async()=>{
     const capture=async name=>{await js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await delay(800);fs.writeFileSync(path.join(work,name+'.png'),(await win.webContents.capturePage()).toPNG());};
     await win.loadFile(path.join(__dirname,'../dist/index.html'));await delay(500);
     await js("document.querySelector('.theme-toggle').click()");await until(()=>js("document.documentElement.dataset.theme==='light'&&!document.querySelector('.theme-toggle').disabled"));await js("document.querySelector('.theme-toggle').click()");await until(()=>js("document.documentElement.dataset.theme==='eclipse'&&!document.querySelector('.theme-toggle').disabled"));
-    assert.ok(await js("document.querySelector('.effort-picker select').getBoundingClientRect().width>40"),'Reasoning control stays visible');
+    assert.ok(await js("document.querySelector('.effort-picker').getBoundingClientRect().width>40"),'Reasoning control stays visible');
     assert.ok(await js("document.querySelector('.model-pill').getBoundingClientRect().width>80"),'Model name stays visible');
     await capture('glass-home-acceptance');
     await input('.composer textarea','Edit sample');await js("document.querySelector('.send').click()");await until(()=>firstStarted);

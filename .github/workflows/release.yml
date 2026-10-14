@@ -13,9 +13,14 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: python scripts/prepare-hermes-environment.py work/hermes-build-venv
+      - run: work/hermes-build-venv/Scripts/python.exe scripts/stage-hermes-python.py work/hermes-python-0.8.0
       - run: node scripts/build-release.cjs
         env:
           CSC_LINK: ${{ secrets.WINDOWS_PFX_BASE64 }}

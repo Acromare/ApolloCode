@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/NousResearch/hermes-agent",
+  "commit": "21ede8a41bd4814aae6151eb6eaeca420751111b",
+  "license": "MIT",
+  "rpcMethods": 258,
+  "schema": "apps/shared/src/gateway-contract.openrpc.json",
+  "pythonDependencyPolicy": "Bundled relocatable Windows Python with locked Hermes PM dependencies; optional environments are prepared through Hermes PM."
+}

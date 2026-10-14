@@ -1,6 +1,9 @@
 const {contextBridge, ipcRenderer} = require('electron');
 
 contextBridge.exposeInMainWorld('apollo', {
+  pathForFile: file=>require('electron').webUtils.getPathForFile(file),
+  storeAttachment: file=>ipcRenderer.invoke('attachment:store',file),
+  hermes:{openUrl:value=>ipcRenderer.invoke('hermes:open-url',value),prepare:()=>ipcRenderer.invoke('hermes:prepare'),session:()=>ipcRenderer.invoke('hermes:session'),state:()=>ipcRenderer.invoke('hermes:state'),catalog:()=>ipcRenderer.invoke('hermes:catalog'),start:()=>ipcRenderer.invoke('hermes:start'),stop:()=>ipcRenderer.invoke('hermes:stop'),use:enabled=>ipcRenderer.invoke('hermes:use',enabled),choosePython:()=>ipcRenderer.invoke('hermes:python'),rpc:(method,params)=>ipcRenderer.invoke('hermes:rpc',method,params),answer:(id,result)=>ipcRenderer.invoke('hermes:answer',id,result),onState:callback=>{const handler=(_,data)=>callback(data);ipcRenderer.on('hermes:state',handler);return()=>ipcRenderer.removeListener('hermes:state',handler);},onEvent:callback=>{const handler=(_,data)=>callback(data);ipcRenderer.on('hermes:event',handler);return()=>ipcRenderer.removeListener('hermes:event',handler);},onRequest:callback=>{const handler=(_,data)=>callback(data);ipcRenderer.on('hermes:request',handler);return()=>ipcRenderer.removeListener('hermes:request',handler);},onRequestCancelled:callback=>{const handler=(_,data)=>callback(data.id);ipcRenderer.on('hermes:request:cancel',handler);return()=>ipcRenderer.removeListener('hermes:request:cancel',handler);}},
   close: () => ipcRenderer.invoke('window:close'),
   minimize: () => ipcRenderer.invoke('window:minimize'),
   maximize: () => ipcRenderer.invoke('window:maximize'),
@@ -60,7 +63,7 @@ contextBridge.exposeInMainWorld('apollo', {
     connectMcp: (id) => ipcRenderer.invoke('runtime:mcp:connect', id),
     disconnectMcp: (id) => ipcRenderer.invoke('runtime:mcp:disconnect', id),
     saveMemory: (text) => ipcRenderer.invoke('runtime:memory', text),
-    cancel: () => ipcRenderer.invoke('runtime:cancel'),
+    cancel: requestId => ipcRenderer.invoke('runtime:cancel',requestId),
     control: (action,requestId,text) => ipcRenderer.invoke('runtime:control',action,requestId,text),
     rollback: (id) => ipcRenderer.invoke('runtime:rollback', id),
     switchProvider: (id) => ipcRenderer.invoke('runtime:provider', id),
